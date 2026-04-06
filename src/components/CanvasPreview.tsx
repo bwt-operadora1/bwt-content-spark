@@ -55,16 +55,40 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
 
       const imgH = Math.round(H * 0.42);
 
-      // Céu
-      const skyGrd = ctx.createLinearGradient(0, 0, 0, imgH * 0.6);
-      skyGrd.addColorStop(0, pal.sky);
-      skyGrd.addColorStop(1, "#d4f1f9");
-      ctx.fillStyle = skyGrd;
-      ctx.fillRect(0, 0, W, imgH * 0.6);
+      // Background image or illustrated fallback
+      if (bgImage) {
+        // Draw the photo covering top area
+        const iw = bgImage.naturalWidth;
+        const ih = bgImage.naturalHeight;
+        const ratio = Math.max(W / iw, imgH / ih);
+        const dw = iw * ratio;
+        const dh = ih * ratio;
+        ctx.drawImage(bgImage, (W - dw) / 2, (imgH - dh) / 2, dw, dh);
+      } else {
+        // Illustrated fallback
+        const skyGrd = ctx.createLinearGradient(0, 0, 0, imgH * 0.6);
+        skyGrd.addColorStop(0, pal.sky);
+        skyGrd.addColorStop(1, "#d4f1f9");
+        ctx.fillStyle = skyGrd;
+        ctx.fillRect(0, 0, W, imgH * 0.6);
 
-      // Sol
-      ctx.fillStyle = "rgba(255,253,200,0.9)";
-      ctx.beginPath();
+        ctx.fillStyle = "rgba(255,253,200,0.9)";
+        ctx.beginPath();
+        ctx.arc(W * 0.74, imgH * 0.16, 60, 0, Math.PI * 2);
+        ctx.fill();
+
+        const waterGrd = ctx.createLinearGradient(0, imgH * 0.6, 0, imgH * 0.82);
+        waterGrd.addColorStop(0, pal.water);
+        waterGrd.addColorStop(1, "#0d5a70");
+        ctx.fillStyle = waterGrd;
+        ctx.fillRect(0, imgH * 0.6, W, imgH * 0.22);
+
+        ctx.fillStyle = pal.sand;
+        ctx.fillRect(0, imgH * 0.82, W, imgH * 0.18);
+
+        drawPalm(ctx, W * 0.14, imgH * 0.2, imgH * 0.34, pal.palm);
+        drawPalm(ctx, W * 0.72, imgH * 0.2, imgH * 0.26, pal.palm);
+      }
       ctx.arc(W * 0.74, imgH * 0.16, 60, 0, Math.PI * 2);
       ctx.fill();
 
