@@ -23,6 +23,7 @@ interface DataDashboardProps {
 const FIELDS = [
   { key: "destino" as const, label: "Destino", icon: MapPin },
   { key: "hotel" as const, label: "Hotel", icon: Hotel },
+  { key: "quartoTipo" as const, label: "Tipo de Quarto", icon: Hotel },
   { key: "duracao" as const, label: "Duração", icon: Moon },
   { key: "regime" as const, label: "Regime", icon: UtensilsCrossed },
   { key: "companhiaAerea" as const, label: "Cia. Aérea", icon: Plane },
