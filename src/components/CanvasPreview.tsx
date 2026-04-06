@@ -65,7 +65,7 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
               transformOrigin: "top left",
               position: "relative",
               fontFamily: "'Inter', sans-serif",
-              background: "#0a2540",
+              background: "#5B21B6",
               overflow: "hidden",
             }}
           >
