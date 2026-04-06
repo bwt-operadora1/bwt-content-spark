@@ -1,10 +1,13 @@
 export interface TravelData {
   destino: string;
   hotel: string;
+  quartoTipo?: string;
   precoTotal: string;
+  precoPorPessoa: string;
   precoParcela: string;
   parcelas: number;
   precoAVista: string;
+  numAdultos: number;
   duracao: string;
   regime: string;
   roteiro: string[];
@@ -25,31 +28,35 @@ export interface VideoScene {
 }
 
 export const SAMPLE_DATA: TravelData = {
-  destino: "Punta Cana",
-  hotel: "Impressive Punta Cana",
-  precoTotal: "R$ 6.890,00",
-  precoParcela: "R$ 689,",
+  destino: "Cancún",
+  hotel: "Grand Palladium Select Costa Mujeres",
+  quartoTipo: "Suite Júnior ao Lado da Piscina",
+  precoTotal: "R$ 18.616,97",
+  precoPorPessoa: "R$ 9.308,49",
+  precoParcela: "R$ 930,85",
   parcelas: 10,
-  precoAVista: "R$ 6.890, à vista.",
-  duracao: "5 Noites",
+  precoAVista: "R$ 8.843,06",
+  numAdultos: 2,
+  duracao: "6 Noites",
   regime: "All Inclusive",
   roteiro: [
-    "Chegada e check-in no resort",
+    "Chegada em Cancún e transfer ao hotel",
+    "Dia livre – sugestão: Chichén Itzá",
+    "Dia livre – sugestão: Isla Mujeres",
     "Dia livre no resort All Inclusive",
-    "Passeio à Ilha Saona",
-    "Dia de praia e esportes aquáticos",
-    "Check-out e traslado ao aeroporto",
+    "Dia livre no resort",
+    "Transfer ao aeroporto e retorno",
   ],
-  desconto: "33",
-  dataInicio: "19/06",
-  dataFim: "24/06/2026",
-  companhiaAerea: "GOL",
+  desconto: "5",
+  dataInicio: "01/08/2026",
+  dataFim: "07/08/2026",
+  companhiaAerea: "LATAM",
   inclui: [
-    "Aéreo CNF / PLU / CNF com Gol Linhas Aéreas em Classe Econômica;",
-    "Transfer de chegada e saída;",
-    "Seguro Viagem - U.A. – 30k;",
-    "5 noites de hospedagem no Impressive Punta Cana;",
-    "All Inclusive",
+    "Aéreo CWB / CUN / CWB com LATAM em Classe Econômica",
+    "Transfer de chegada e saída",
+    "Seguro Viagem Universal Assistance 30K",
+    "6 noites no Grand Palladium Select Costa Mujeres",
+    "All Inclusive (Tudo Incluído)",
   ],
   tipoProduto: "Aéreo + Hotel",
   campanha: "Operação Caribe",

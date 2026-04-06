@@ -23,6 +23,7 @@ interface DataDashboardProps {
 const FIELDS = [
   { key: "destino" as const, label: "Destino", icon: MapPin },
   { key: "hotel" as const, label: "Hotel", icon: Hotel },
+  { key: "quartoTipo" as const, label: "Tipo de Quarto", icon: Hotel },
   { key: "duracao" as const, label: "Duração", icon: Moon },
   { key: "regime" as const, label: "Regime", icon: UtensilsCrossed },
   { key: "companhiaAerea" as const, label: "Cia. Aérea", icon: Plane },
@@ -35,17 +36,21 @@ const DataDashboard = ({ data, onChange }: DataDashboardProps) => {
   const updateField = (key: keyof TravelData, value: string) => {
     const updated = { ...data, [key]: value };
 
-    // Recalcular preço por pessoa e parcela ao mudar precoTotal ou parcelas
-    if (key === "precoTotal" || key === "parcelas") {
+    // Recalcular preço por pessoa e parcela ao mudar precoTotal, parcelas ou numAdultos
+    if (key === "precoTotal" || key === "parcelas" || key === "numAdultos") {
       const total = parseFloat(
         (key === "precoTotal" ? value : data.precoTotal).replace(/[^\d,]/g, "").replace(",", "."),
       );
       const nParcelas = parseInt(String(key === "parcelas" ? value : data.parcelas));
-      if (!isNaN(total) && !isNaN(nParcelas) && nParcelas > 0) {
-        const pp = total / 2;
+      const nAdultos = parseInt(String(key === "numAdultos" ? value : data.numAdultos)) || 2;
+      if (!isNaN(total) && !isNaN(nParcelas) && nParcelas > 0 && nAdultos > 0) {
+        const pp = total / nAdultos;
         const parcela = pp / nParcelas;
-        updated.precoAVista = `R$ ${pp.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}, à vista.`;
+        const descPct = parseInt(data.desconto || "5") / 100;
+        updated.precoPorPessoa = `R$ ${pp.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+        updated.precoAVista = `R$ ${(pp * (1 - descPct)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
         updated.precoParcela = `R$ ${parcela.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+        updated.numAdultos = nAdultos;
         if (key !== "parcelas") updated.parcelas = nParcelas;
       }
     }
@@ -96,10 +101,11 @@ const DataDashboard = ({ data, onChange }: DataDashboardProps) => {
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
           <DollarSign className="w-3.5 h-3.5" /> Precificação
         </p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {[
-            { key: "precoTotal" as const, label: "Total 2 pax" },
+            { key: "precoTotal" as const, label: `Total ${data.numAdultos || 2} pax` },
             { key: "parcelas" as const, label: "Parcelas" },
+            { key: "numAdultos" as const, label: "Nº Adultos" },
           ].map(({ key, label }) => (
             <div key={key}>
               <label className="text-xs text-muted-foreground">{label}</label>
@@ -116,13 +122,19 @@ const DataDashboard = ({ data, onChange }: DataDashboardProps) => {
           style={{ background: "rgba(0,180,200,0.08)", border: "0.5px solid rgba(0,180,200,0.2)" }}
         >
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Parcela (÷10)</span>
+            <span className="text-muted-foreground">Por pessoa</span>
             <span className="font-semibold" style={{ color: "#00b4c8" }}>
+              {data.precoPorPessoa || "—"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Parcela ({data.parcelas}x)</span>
+            <span className="font-semibold">
               {data.precoParcela || "—"}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">À vista (÷2)</span>
+            <span className="text-muted-foreground">À vista ({data.desconto || 5}% desc.)</span>
             <span className="font-semibold">{data.precoAVista || "—"}</span>
           </div>
         </div>
