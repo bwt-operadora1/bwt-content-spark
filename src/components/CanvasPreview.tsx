@@ -262,7 +262,7 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
               bottom: 0,
               left: 0,
               right: 0,
-              background: "rgba(0,10,30,0.9)",
+              background: "rgba(60,20,130,0.9)",
               padding: "10px 40px",
             }}>
               <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 9, lineHeight: 1.4, textAlign: "center" }}>

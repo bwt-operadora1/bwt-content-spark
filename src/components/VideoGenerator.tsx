@@ -22,7 +22,7 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
 
       <div className="glass-card rounded-xl p-6 space-y-4">
         <div className="aspect-[9/16] max-w-[280px] mx-auto rounded-xl overflow-hidden relative"
-          style={{ background: "linear-gradient(135deg, hsl(215 80% 22%), hsl(215 80% 35%))" }}>
+          style={{ background: "linear-gradient(135deg, hsl(270 80% 30%), hsl(270 80% 45%))" }}>
           <div
             className="absolute inset-0 opacity-40"
             style={{

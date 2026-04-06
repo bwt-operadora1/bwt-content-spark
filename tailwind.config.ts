@@ -58,9 +58,9 @@ export default {
           ring: "hsl(var(--sidebar-ring))",
         },
         bwt: {
-          navy: "hsl(var(--bwt-navy))",
-          blue: "hsl(var(--bwt-blue))",
-          "light-blue": "hsl(var(--bwt-light-blue))",
+          purple: "hsl(var(--bwt-purple))",
+          "purple-dark": "hsl(var(--bwt-purple-dark))",
+          "purple-light": "hsl(var(--bwt-purple-light))",
           gold: "hsl(var(--bwt-gold))",
           "gold-light": "hsl(var(--bwt-gold-light))",
           "warm-white": "hsl(var(--bwt-warm-white))",
