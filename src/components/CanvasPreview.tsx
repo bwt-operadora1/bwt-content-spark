@@ -1,308 +1,383 @@
 import { Download, Image as ImageIcon, RefreshCw } from "lucide-react";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { TravelData } from "@/types/travel";
 import { Button } from "@/components/ui/button";
-import { getDestinationContext, getUnsplashSearchUrl, type DestinationContext } from "@/lib/destinationContext";
 
 interface CanvasPreviewProps {
   data: TravelData;
 }
 
-function getPalette(destino: string) {
-  return getDestinationContext(destino).palette;
-}
-
 const COND_PADRAO =
   "Valores por pessoa em Reais. Sujeito a disponibilidade e alterações sem prévio aviso. Parcelamento em até 10x, respeitando parcela mínima de R$ 150,00. Nos reservamos o direito a correções de possíveis erros de digitação. Consulte regras gerais em www.bwtoperadora.com.br";
 
+// Paleta por destino
+const PALETTES: Record<string, [string, string, string, string]> = {
+  // [sky, water, sand, palm]
+  cancun: ["#87ceeb", "#00bcd4", "#f4d03f", "#1a6e30"],
+  cancún: ["#87ceeb", "#00bcd4", "#f4d03f", "#1a6e30"],
+  "punta cana": ["#87d3eb", "#20b2aa", "#f5deb3", "#1a7a40"],
+  aruba: ["#a8d8ea", "#00ced1", "#deb887", "#8b6914"],
+  jamaica: ["#7ec8e3", "#008080", "#f0e68c", "#1a6e20"],
+  bahamas: ["#b0e0e6", "#40e0d0", "#ffe4b5", "#2a8a50"],
+  cuba: ["#87ceeb", "#008b8b", "#d2b48c", "#8b6914"],
+  europa: ["#b0c4de", "#4169e1", "#e8e8e8", "#2a3a6e"],
+  paris: ["#b0c4de", "#4169e1", "#e8e8e8", "#2a3a6e"],
+  miami: ["#87ceeb", "#00ced1", "#fffacd", "#20a050"],
+  orlando: ["#87ceeb", "#1e90ff", "#ffd700", "#1a6e30"],
+  default: ["#87ceeb", "#00bcd4", "#f4d03f", "#1a6e30"],
+};
+
+function getPalette(destino: string): [string, string, string, string] {
+  const d = destino.toLowerCase();
+  for (const [k, v] of Object.entries(PALETTES)) {
+    if (d.includes(k)) return v;
+  }
+  return PALETTES.default;
+}
+
+// ─── Funções de desenho ────────────────────────────────────────────────────────
+
+function rrect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+function drawPalm(ctx: CanvasRenderingContext2D, px: number, py: number, size: number, color: string) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = size * 0.05;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(px, py + size);
+  ctx.quadraticCurveTo(px + size * 0.1, py + size * 0.5, px + size * 0.05, py);
+  ctx.stroke();
+  const fronds = [
+    [-0.5, 0],
+    [0, -0.05],
+    [0.45, 0.05],
+  ];
+  fronds.forEach(([angle]) => {
+    ctx.save();
+    ctx.translate(px + size * 0.05, py);
+    ctx.rotate(angle as number);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, size * 0.32, size * 0.09, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxW: number,
+  lineH: number,
+): number {
+  const words = text.split(" ");
+  let line = "";
+  let cy = y;
+  for (const w of words) {
+    const test = line + (line ? " " : "") + w;
+    if (ctx.measureText(test).width > maxW && line) {
+      ctx.fillText(line, x, cy);
+      cy += lineH;
+      line = w;
+    } else line = test;
+  }
+  if (line) {
+    ctx.fillText(line, x, cy);
+    cy += lineH;
+  }
+  return cy;
+}
+
+function drawLamina(canvas: HTMLCanvasElement, data: TravelData, W: number, H: number) {
+  const ctx = canvas.getContext("2d")!;
+  canvas.width = W;
+  canvas.height = H;
+
+  const [sky, water, sand, palm] = getPalette(data.destino);
+  const imgH = Math.round(H * 0.41);
+
+  // ── FUNDO NAVY ──
+  ctx.fillStyle = "#0d1b2a";
+  ctx.fillRect(0, 0, W, H);
+
+  // ── CÉU ──
+  const skyGrd = ctx.createLinearGradient(0, 0, 0, imgH * 0.58);
+  skyGrd.addColorStop(0, sky);
+  skyGrd.addColorStop(1, "#d4f1f9");
+  ctx.fillStyle = skyGrd;
+  ctx.fillRect(0, 0, W, imgH * 0.58);
+
+  // Sol
+  ctx.fillStyle = "rgba(255,253,200,0.92)";
+  ctx.beginPath();
+  ctx.arc(W * 0.73, imgH * 0.16, W * 0.057, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Nuvens
+  ctx.fillStyle = "rgba(255,255,255,0.6)";
+  [
+    [0.08, 0.2, 68, 26],
+    [0.26, 0.13, 90, 32],
+    [0.47, 0.18, 72, 26],
+  ].forEach(([x, y, rx, ry]) => {
+    ctx.beginPath();
+    ctx.ellipse(W * x, imgH * y, rx as number, ry as number, 0, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // ── ÁGUA ──
+  const waterY = imgH * 0.58;
+  const waterH = imgH * 0.24;
+  const wGrd = ctx.createLinearGradient(0, waterY, 0, waterY + waterH);
+  wGrd.addColorStop(0, water);
+  wGrd.addColorStop(1, "#0a5a6e");
+  ctx.fillStyle = wGrd;
+  ctx.fillRect(0, waterY, W, waterH);
+
+  // ondas
+  ctx.strokeStyle = "rgba(255,255,255,0.22)";
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(0, waterY);
+  for (let x = 0; x <= W; x += 8) ctx.lineTo(x, waterY + 5 * Math.sin((x / 70) * Math.PI));
+  ctx.stroke();
+
+  // ── AREIA ──
+  ctx.fillStyle = sand;
+  ctx.fillRect(0, waterY + waterH, W, imgH - (waterY + waterH));
+
+  // ── PALMEIRAS ──
+  drawPalm(ctx, W * 0.13, imgH * 0.19, imgH * 0.33, palm);
+  drawPalm(ctx, W * 0.71, imgH * 0.2, imgH * 0.24, palm);
+
+  // ── OVERLAY GRADIENTE ──
+  const ovGrd = ctx.createLinearGradient(0, 0, 0, imgH);
+  ovGrd.addColorStop(0.55, "rgba(0,0,0,0)");
+  ovGrd.addColorStop(1, "rgba(13,27,42,0.72)");
+  ctx.fillStyle = ovGrd;
+  ctx.fillRect(0, 0, W, imgH);
+
+  // ── BADGE DESCONTO ──
+  if (data.desconto) {
+    ctx.fillStyle = "#00b4c8";
+    ctx.fillRect(W - Math.round(W * 0.22), 0, Math.round(W * 0.22), Math.round(H * 0.027));
+    ctx.fillStyle = "#003d45";
+    ctx.font = `700 ${Math.round(H * 0.014)}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(
+      (data.desconto || "COM ATÉ").toUpperCase().includes("COM") ? data.desconto : `COM ATÉ`,
+      W - Math.round(W * 0.11),
+      Math.round(H * 0.02),
+    );
+    ctx.fillStyle = "#000";
+    ctx.fillRect(W - Math.round(W * 0.22), Math.round(H * 0.027), Math.round(W * 0.22), Math.round(H * 0.05));
+    ctx.fillStyle = "#fff";
+    ctx.font = `900 ${Math.round(H * 0.042)}px sans-serif`;
+    ctx.fillText(`${data.desconto}% OFF`, W - Math.round(W * 0.11), Math.round(H * 0.066));
+  }
+
+  // ── TAG PRODUTO ──
+  const tagY = imgH - Math.round(H * 0.044);
+  const tagH = Math.round(H * 0.033);
+  ctx.fillStyle = "rgba(13,27,42,0.9)";
+  rrect(ctx, Math.round(W * 0.037), tagY, Math.round(W * 0.22), tagH, tagH / 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(0,180,200,0.5)";
+  ctx.lineWidth = 1.5;
+  rrect(ctx, Math.round(W * 0.037), tagY, Math.round(W * 0.22), tagH, tagH / 2);
+  ctx.stroke();
+  ctx.fillStyle = "#fff";
+  ctx.font = `600 ${Math.round(H * 0.019)}px sans-serif`;
+  ctx.textAlign = "left";
+  ctx.fillText(`✈ ${data.tipoProduto || "Aéreo + Hotel"}`, Math.round(W * 0.06), tagY + tagH * 0.68);
+
+  // ── SELO CAMPANHA ──
+  if (data.campanha) {
+    const sr = Math.round(W * 0.088);
+    const sx = W - sr - Math.round(W * 0.04);
+    const sy = imgH - Math.round(H * 0.015);
+    ctx.fillStyle = "#062d36";
+    ctx.beginPath();
+    ctx.arc(sx, sy + sr * 0.5, sr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#00b4c8";
+    ctx.lineWidth = Math.round(W * 0.006);
+    ctx.beginPath();
+    ctx.arc(sx, sy + sr * 0.5, sr, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = "#00b4c8";
+    ctx.font = `700 ${Math.round(H * 0.011)}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(data.campanha.toUpperCase(), sx, sy + sr * 0.2);
+    ctx.fillStyle = "#fff";
+    ctx.font = `900 ${Math.round(H * 0.017)}px sans-serif`;
+    ctx.fillText("2026", sx, sy + sr * 0.75);
+  }
+
+  // ── CORPO ──
+  const bodyX = Math.round(W * 0.037);
+  const bodyY = imgH + Math.round(H * 0.025);
+  const lineBase = Math.round(H * 0.016);
+
+  // Título destino
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `800 ${Math.round(H * 0.065)}px 'Barlow Condensed', sans-serif`;
+  ctx.textAlign = "left";
+  ctx.fillText(data.destino, bodyX, bodyY + Math.round(H * 0.055));
+
+  // Inclui label
+  let iy = bodyY + Math.round(H * 0.075);
+  ctx.fillStyle = "#fff";
+  ctx.font = `700 ${lineBase}px sans-serif`;
+  ctx.fillText("INCLUI", bodyX, iy);
+  iy += Math.round(H * 0.022);
+
+  const items = (data.inclui || []).slice(0, 5);
+  items.forEach((item) => {
+    ctx.fillStyle = "#00b4c8";
+    ctx.font = `${lineBase}px sans-serif`;
+    ctx.fillText("•", bodyX, iy);
+    ctx.fillStyle = "#c8d8e8";
+    ctx.font = `${lineBase}px sans-serif`;
+    const maxW = W * 0.52;
+    const txt = item.length > 55 ? item.substring(0, 55) + "…" : item;
+    ctx.fillText(txt, bodyX + Math.round(W * 0.025), iy);
+    iy += Math.round(H * 0.02);
+  });
+
+  // Preço (coluna direita)
+  if (data.precoParcela) {
+    const px2 = W - Math.round(W * 0.037);
+    let py2 = bodyY + Math.round(H * 0.042);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#8aaabb";
+    ctx.font = `${Math.round(H * 0.013)}px sans-serif`;
+    ctx.fillText("A PARTIR DE", px2, py2);
+    py2 += Math.round(H * 0.018);
+    ctx.fillStyle = "#00d4e8";
+    ctx.font = `900 ${Math.round(H * 0.048)}px sans-serif`;
+    ctx.fillText(`${data.parcelas}x`, px2, py2);
+    py2 += Math.round(H * 0.008);
+    ctx.fillStyle = "#fff";
+    ctx.font = `900 ${Math.round(H * 0.056)}px sans-serif`;
+    ctx.fillText(`R$ ${data.precoParcela.replace("R$ ", "")}`, px2, py2 + Math.round(H * 0.048));
+    py2 += Math.round(H * 0.062);
+    if (data.precoAVista) {
+      ctx.fillStyle = "#fff";
+      ctx.font = `600 ${Math.round(H * 0.014)}px sans-serif`;
+      ctx.fillText(`Ou ${data.precoAVista}`, px2, py2);
+      py2 += Math.round(H * 0.018);
+    }
+    ctx.fillStyle = "#8aaabb";
+    ctx.font = `${Math.round(H * 0.012)}px sans-serif`;
+    ctx.fillText("por pessoa em apto duplo", px2, py2);
+  }
+
+  // Cia aérea
+  if (data.companhiaAerea) {
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#fff";
+    ctx.font = `700 ${Math.round(H * 0.022)}px sans-serif`;
+    ctx.fillText(data.companhiaAerea, W - Math.round(W * 0.037), iy + Math.round(H * 0.01));
+    iy += Math.round(H * 0.032);
+  }
+
+  // Data pill
+  if (data.dataInicio && data.dataFim) {
+    const pillH = Math.round(H * 0.032);
+    const dataTxt = `📅 ${data.dataInicio} a ${data.dataFim}`;
+    ctx.font = `700 ${Math.round(H * 0.016)}px sans-serif`;
+    ctx.textAlign = "left";
+    const pillW = ctx.measureText(dataTxt).width + Math.round(W * 0.04);
+    ctx.fillStyle = "#00b4c8";
+    rrect(ctx, bodyX, iy, pillW, pillH, pillH / 2);
+    ctx.fill();
+    ctx.fillStyle = "#003d45";
+    ctx.fillText(dataTxt, bodyX + Math.round(W * 0.02), iy + pillH * 0.68);
+    iy += pillH + Math.round(H * 0.01);
+  }
+
+  // ── FOOTER BWT ──
+  const footerY = H - Math.round(H * 0.083);
+  ctx.strokeStyle = "rgba(255,255,255,0.1)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, footerY);
+  ctx.lineTo(W, footerY);
+  ctx.stroke();
+  ctx.fillStyle = "#fff";
+  ctx.font = `700 ${Math.round(H * 0.016)}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.fillText("UM PRODUTO BWT OPERADORA", W / 2, footerY + Math.round(H * 0.026));
+
+  // Rodapé condições
+  const condY = footerY + Math.round(H * 0.046);
+  ctx.fillStyle = "#f0ede8";
+  ctx.fillRect(0, condY, W, H - condY);
+  ctx.fillStyle = "#444";
+  ctx.font = `${Math.round(H * 0.0095)}px sans-serif`;
+  ctx.textAlign = "left";
+  wrapText(
+    ctx,
+    COND_PADRAO,
+    Math.round(W * 0.018),
+    condY + Math.round(H * 0.012),
+    W - Math.round(W * 0.036),
+    Math.round(H * 0.013),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 const CanvasPreview = ({ data }: CanvasPreviewProps) => {
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLCanvasElement>(null);
   const [exporting, setExporting] = useState(false);
-  const [bgImage, setBgImage] = useState<HTMLImageElement | null>(null);
-  const [bgLoaded, setBgLoaded] = useState(false);
 
-  const destCtx = getDestinationContext(data.destino);
-  const pal = destCtx.palette;
+  // Preview: 360px wide
+  const PW = 360,
+    PH = Math.round((360 * 1350) / 1080);
 
-  // Load destination background image
   useEffect(() => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.src = getUnsplashSearchUrl(destCtx.imageKeyword, 1080, 600);
-    img.onload = () => {
-      setBgImage(img);
-      setBgLoaded(true);
-    };
-    img.onerror = () => setBgLoaded(false);
-  }, [data.destino]);
+    if (previewRef.current) {
+      drawLamina(previewRef.current, data, PW, PH);
+    }
+  }, [data]);
 
-  // Exportação via Canvas 2D nativo — sem html-to-image, sem CORS
   const handleExport = async () => {
     setExporting(true);
     try {
-      const W = 1080,
-        H = 1350,
-        scale = 3;
       const canvas = document.createElement("canvas");
-      canvas.width = W;
-      canvas.height = H;
-      const ctx = canvas.getContext("2d")!;
-
-      // Fundo navy
-      ctx.fillStyle = "#0d1b2a";
-      roundRect(ctx, 0, 0, W, H, 0);
-      ctx.fill();
-
-      const imgH = Math.round(H * 0.42);
-
-      // Background image or illustrated fallback
-      if (bgImage) {
-        // Draw the photo covering top area
-        const iw = bgImage.naturalWidth;
-        const ih = bgImage.naturalHeight;
-        const ratio = Math.max(W / iw, imgH / ih);
-        const dw = iw * ratio;
-        const dh = ih * ratio;
-        ctx.drawImage(bgImage, (W - dw) / 2, (imgH - dh) / 2, dw, dh);
-      } else {
-        // Illustrated fallback
-        const skyGrd = ctx.createLinearGradient(0, 0, 0, imgH * 0.6);
-        skyGrd.addColorStop(0, pal.sky);
-        skyGrd.addColorStop(1, "#d4f1f9");
-        ctx.fillStyle = skyGrd;
-        ctx.fillRect(0, 0, W, imgH * 0.6);
-
-        ctx.fillStyle = "rgba(255,253,200,0.9)";
-        ctx.beginPath();
-        ctx.arc(W * 0.74, imgH * 0.16, 60, 0, Math.PI * 2);
-        ctx.fill();
-
-        const waterGrd = ctx.createLinearGradient(0, imgH * 0.6, 0, imgH * 0.82);
-        waterGrd.addColorStop(0, pal.water);
-        waterGrd.addColorStop(1, "#0d5a70");
-        ctx.fillStyle = waterGrd;
-        ctx.fillRect(0, imgH * 0.6, W, imgH * 0.22);
-
-        ctx.fillStyle = pal.sand;
-        ctx.fillRect(0, imgH * 0.82, W, imgH * 0.18);
-
-        drawPalm(ctx, W * 0.14, imgH * 0.2, imgH * 0.34, pal.palm);
-        drawPalm(ctx, W * 0.72, imgH * 0.2, imgH * 0.26, pal.palm);
-      }
-
-
-      const ovGrd = ctx.createLinearGradient(0, 0, 0, imgH);
-      ovGrd.addColorStop(0, "rgba(0,0,0,0)");
-      ovGrd.addColorStop(0.65, "rgba(0,0,0,0)");
-      ovGrd.addColorStop(1, "rgba(13,27,42,0.75)");
-      ctx.fillStyle = ovGrd;
-      ctx.fillRect(0, 0, W, imgH);
-
-      // Badge desconto
-      if (data.desconto) {
-        ctx.fillStyle = "#00b4c8";
-        ctx.fillRect(W - 230, 0, 230, 28);
-        ctx.fillStyle = "#003d45";
-        ctx.font = `bold ${18}px sans-serif`;
-        ctx.textAlign = "center";
-        ctx.fillText("COM ATÉ", W - 115, 20);
-        ctx.fillStyle = "#000";
-        ctx.fillRect(W - 230, 28, 230, 52);
-        ctx.fillStyle = "#fff";
-        ctx.font = `900 ${52}px sans-serif`;
-        ctx.fillText(`${data.desconto}% OFF`, W - 115, 73);
-      }
-
-      // Tag produto
-      ctx.fillStyle = "rgba(13,27,42,0.88)";
-      roundRect(ctx, 40, imgH - 52, 200, 36, 18);
-      ctx.fill();
-      ctx.fillStyle = "#fff";
-      ctx.font = `600 ${20}px sans-serif`;
-      ctx.textAlign = "left";
-      ctx.fillText(`✈ ${data.tipoProduto || "Aéreo + Hotel"}`, 58, imgH - 28);
-
-      // Selo campanha
-      if (data.campanha) {
-        ctx.strokeStyle = "#00b4c8";
-        ctx.lineWidth = 6;
-        ctx.fillStyle = "#062d36";
-        ctx.beginPath();
-        ctx.arc(W - 100, imgH + 40, 90, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = "#00b4c8";
-        ctx.font = `bold ${16}px sans-serif`;
-        ctx.textAlign = "center";
-        wrapText(ctx, data.campanha.toUpperCase(), W - 100, imgH + 20, 150, 18);
-        ctx.fillStyle = "#fff";
-        ctx.font = `900 ${22}px sans-serif`;
-        ctx.fillText("2026", W - 100, imgH + 55);
-      }
-
-      // Título destino
-      const bodyY = imgH + (data.campanha ? 80 : 50);
-      ctx.fillStyle = "#fff";
-      ctx.font = `800 ${data.destino.length > 12 ? 56 : 66}px 'Barlow Condensed', sans-serif`;
-      ctx.textAlign = "left";
-      ctx.fillText(data.destino, 60, bodyY);
-
-      // INCLUI
-      const items = data.inclui || [];
-      let iy = bodyY + 44;
-      ctx.fillStyle = "#fff";
-      ctx.font = `700 ${18}px sans-serif`;
-      ctx.fillText("INCLUI", 60, iy);
-      iy += 22;
-      items.slice(0, 5).forEach((item) => {
-        ctx.fillStyle = "#00b4c8";
-        ctx.font = `${17}px sans-serif`;
-        ctx.fillText("•", 60, iy);
-        ctx.fillStyle = "#c8d8e8";
-        ctx.font = `${17}px sans-serif`;
-        ctx.fillText(item.substring(0, 52), 82, iy);
-        iy += 22;
-      });
-
-      // Preço
-      if (data.precoParcela) {
-        ctx.textAlign = "right";
-        ctx.fillStyle = "#8aaabb";
-        ctx.font = `${16}px sans-serif`;
-        ctx.fillText("A PARTIR DE", W - 60, bodyY + 10);
-        ctx.fillStyle = "#00d4e8";
-        ctx.font = `900 ${88}px sans-serif`;
-        ctx.fillText(`${data.parcelas}x`, W - 60, bodyY + 78);
-        ctx.fillStyle = "#fff";
-        ctx.font = `900 ${60}px sans-serif`;
-        ctx.fillText(`R$ ${data.precoParcela.replace("R$ ", "")}`, W - 60, bodyY + 130);
-        if (data.precoAVista) {
-          ctx.fillStyle = "#fff";
-          ctx.font = `600 ${18}px sans-serif`;
-          ctx.fillText(`Ou ${data.precoAVista}`, W - 60, bodyY + 155);
-        }
-        ctx.fillStyle = "#8aaabb";
-        ctx.font = `${15}px sans-serif`;
-        ctx.fillText("por pessoa em apto duplo", W - 60, bodyY + 175);
-      }
-
-      // Cia aérea
-      if (data.companhiaAerea) {
-        ctx.fillStyle = "#fff";
-        ctx.font = `800 ${28}px sans-serif`;
-        ctx.textAlign = "right";
-        ctx.fillText(data.companhiaAerea, W - 60, iy + 10);
-        iy += 36;
-      }
-
-      // Data pill
-      if (data.dataInicio && data.dataFim) {
-        ctx.fillStyle = "#00b4c8";
-        ctx.textAlign = "left";
-        roundRect(ctx, 60, iy + 4, 320, 36, 18);
-        ctx.fill();
-        ctx.fillStyle = "#003d45";
-        ctx.font = `700 ${18}px sans-serif`;
-        ctx.fillText(`📅 ${data.dataInicio} a ${data.dataFim}`, 80, iy + 27);
-        iy += 52;
-      }
-
-      // Footer
-      const footerY = H - 100;
-      ctx.strokeStyle = "rgba(255,255,255,0.1)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, footerY);
-      ctx.lineTo(W, footerY);
-      ctx.stroke();
-      ctx.fillStyle = "#fff";
-      ctx.font = `700 ${20}px sans-serif`;
-      ctx.textAlign = "center";
-      ctx.fillText("UM PRODUTO BWT OPERADORA", W / 2, footerY + 28);
-
-      // Rodapé condições
-      ctx.fillStyle = "#f0ede8";
-      ctx.fillRect(0, footerY + 46, W, H - (footerY + 46));
-      ctx.fillStyle = "#444";
-      ctx.font = `${13}px sans-serif`;
-      wrapText(ctx, COND_PADRAO, 20, footerY + 64, W - 40, 16);
-
-      // Download
+      drawLamina(canvas, data, 1080, 1350);
       canvas.toBlob((blob) => {
         if (!blob) return;
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `bwt-${data.destino.toLowerCase().replace(/\s/g, "-")}.png`;
+        a.download = `bwt-${data.destino.toLowerCase().replace(/\s+/g, "-")}-lamina.png`;
         a.click();
         URL.revokeObjectURL(url);
       }, "image/png");
-    } catch (err) {
-      console.error("Export failed:", err);
     } finally {
       setExporting(false);
     }
   };
-
-  // Utilitários canvas
-  function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.arcTo(x + w, y, x + w, y + r, r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-    ctx.lineTo(x + r, y + h);
-    ctx.arcTo(x, y + h, x, y + h - r, r);
-    ctx.lineTo(x, y + r);
-    ctx.arcTo(x, y, x + r, y, r);
-    ctx.closePath();
-  }
-
-  function drawPalm(ctx: CanvasRenderingContext2D, px: number, py: number, size: number, color: string) {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = size * 0.055;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(px, py + size);
-    ctx.quadraticCurveTo(px + size * 0.12, py + size * 0.5, px + size * 0.06, py);
-    ctx.stroke();
-    [
-      [-0.4, -0.12],
-      [0, 0],
-      [0.4, -0.1],
-    ].forEach(([angle, dy]) => {
-      ctx.save();
-      ctx.translate(px + size * 0.06, py + size * dy);
-      ctx.rotate(angle);
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.85;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, size * 0.32, size * 0.09, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-      ctx.globalAlpha = 1;
-    });
-  }
-
-  function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number, lineH: number) {
-    const words = text.split(" ");
-    let line = "";
-    let cy = y;
-    ctx.textAlign = "left";
-    for (const w of words) {
-      const test = line + (line ? " " : "") + w;
-      if (ctx.measureText(test).width > maxW && line) {
-        ctx.fillText(line, x, cy);
-        cy += lineH;
-        line = w;
-      } else line = test;
-    }
-    if (line) ctx.fillText(line, x, cy);
-  }
-
-  // Preview scale
-  const scale = 360 / 1080;
 
   return (
     <div className="space-y-4">
@@ -316,317 +391,30 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
           disabled={exporting}
           size="sm"
           style={{ background: "#00b4c8", color: "#0d1b2a" }}
-          className="hover:opacity-90"
+          className="hover:opacity-90 font-semibold"
         >
-          {exporting ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
-          {exporting ? "Gerando..." : "Exportar PNG 1080×1350"}
+          {exporting ? (
+            <>
+              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              Gerando...
+            </>
+          ) : (
+            <>
+              <Download className="w-4 h-4 mr-2" />
+              Exportar PNG 1080×1350
+            </>
+          )}
         </Button>
       </div>
 
       <div className="flex justify-center">
-        <div
-          style={{
-            width: 1080 * scale,
-            height: 1350 * scale,
-            overflow: "hidden",
-            borderRadius: 12,
-            boxShadow: "0 10px 40px rgba(0,0,0,0.3)",
-          }}
-        >
-          <div
-            ref={canvasRef}
-            style={{
-              width: 1080,
-              height: 1350,
-              transform: `scale(${scale})`,
-              transformOrigin: "top left",
-              position: "relative",
-              fontFamily: "'Inter', sans-serif",
-              background: "#0d1b2a",
-              overflow: "hidden",
-            }}
-          >
-            {/* Imagem do destino */}
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "42%" }}>
-              {bgLoaded ? (
-                <img
-                  src={getUnsplashSearchUrl(destCtx.imageKeyword, 1080, 600)}
-                  alt={data.destino}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  crossOrigin="anonymous"
-                />
-              ) : (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    background: `linear-gradient(180deg, ${pal.sky} 0%, #d4f1f9 55%, ${pal.water} 55%, #0d5a70 78%, ${pal.sand} 78%, ${pal.sand} 100%)`,
-                  }}
-                />
-              )}
-              {/* Overlay gradiente bottom */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: "linear-gradient(180deg, rgba(0,0,0,0.1) 0%, transparent 30%, rgba(13,27,42,0.8) 100%)",
-                }}
-              />
-              {/* Destination description badge */}
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: 20,
-                  left: 40,
-                  right: 200,
-                  color: "rgba(255,255,255,0.85)",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  lineHeight: 1.4,
-                  textShadow: "0 1px 3px rgba(0,0,0,0.5)",
-                }}
-              >
-                {destCtx.emoji} {destCtx.description}
-              </div>
-            </div>
-
-            {/* Badge desconto */}
-            {data.desconto && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  right: 0,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-end",
-                }}
-              >
-                <div
-                  style={{
-                    background: "#00b4c8",
-                    color: "#003d45",
-                    fontSize: 14,
-                    fontWeight: 700,
-                    padding: "4px 16px",
-                    letterSpacing: 1,
-                  }}
-                >
-                  COM ATÉ
-                </div>
-                <div
-                  style={{
-                    background: "#000",
-                    color: "#fff",
-                    fontSize: 56,
-                    fontWeight: 900,
-                    padding: "0 16px",
-                    lineHeight: 1.1,
-                    display: "flex",
-                    alignItems: "baseline",
-                    gap: 4,
-                  }}
-                >
-                  {data.desconto}
-                  <span style={{ fontSize: 20, fontWeight: 700, color: "#ccc" }}>% OFF</span>
-                </div>
-              </div>
-            )}
-
-            {/* Tag produto */}
-            <div
-              style={{
-                position: "absolute",
-                top: "38%",
-                left: 40,
-                background: "rgba(13,27,42,0.9)",
-                border: "1px solid rgba(0,180,200,0.4)",
-                borderRadius: 30,
-                padding: "8px 20px",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <span style={{ color: "#fff", fontSize: 18, fontWeight: 600 }}>
-                ✈ {data.tipoProduto || "Aéreo + Hotel"}
-              </span>
-            </div>
-
-            {/* Selo campanha */}
-            {data.campanha && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "36%",
-                  right: 40,
-                  width: 130,
-                  height: 130,
-                  borderRadius: "50%",
-                  background: "#062d36",
-                  border: "3px solid #00b4c8",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <span
-                  style={{
-                    color: "#00b4c8",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    textAlign: "center",
-                    lineHeight: 1.2,
-                    padding: "0 10px",
-                  }}
-                >
-                  {data.campanha}
-                </span>
-                <span style={{ color: "#fff", fontSize: 16, fontWeight: 900, marginTop: 4 }}>2026</span>
-              </div>
-            )}
-
-            {/* Corpo */}
-            <div style={{ position: "absolute", top: "44%", left: 0, right: 0, bottom: 0, padding: "20px 40px 0" }}>
-              <h2
-                style={{
-                  color: "#fff",
-                  fontSize: 72,
-                  fontWeight: 800,
-                  lineHeight: 1.05,
-                  fontFamily: "'Barlow Condensed', sans-serif",
-                  letterSpacing: -1,
-                }}
-              >
-                {data.destino}
-              </h2>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  marginTop: 16,
-                  gap: 20,
-                }}
-              >
-                {/* Inclui */}
-                <div style={{ flex: 1 }}>
-                  <p
-                    style={{
-                      color: "#fff",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      letterSpacing: 2,
-                      marginBottom: 8,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    INCLUI
-                  </p>
-                  {(data.inclui || []).slice(0, 5).map((item, i) => (
-                    <div key={i} style={{ display: "flex", gap: 8, marginBottom: 5 }}>
-                      <span style={{ color: "#00b4c8", fontSize: 13, flexShrink: 0 }}>•</span>
-                      <span style={{ color: "#c8d8e8", fontSize: 13, lineHeight: 1.4 }}>{item}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Preço */}
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <p style={{ color: "#8aaabb", fontSize: 12, letterSpacing: 1, textTransform: "uppercase" }}>
-                    A PARTIR DE
-                  </p>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "baseline",
-                      justifyContent: "flex-end",
-                      gap: 4,
-                      marginTop: 2,
-                    }}
-                  >
-                    <span style={{ color: "#00d4e8", fontSize: 36, fontWeight: 900 }}>{data.parcelas}x</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "baseline", justifyContent: "flex-end" }}>
-                    <span style={{ color: "#fff", fontSize: 20, fontWeight: 600 }}>R$</span>
-                    <span style={{ color: "#fff", fontSize: 56, fontWeight: 900, lineHeight: 1 }}>
-                      {data.precoParcela?.replace("R$ ", "")}
-                    </span>
-                  </div>
-                  {data.precoAVista && (
-                    <p style={{ color: "#fff", fontSize: 13, fontWeight: 600 }}>Ou {data.precoAVista}</p>
-                  )}
-                  <p style={{ color: "#8aaabb", fontSize: 11, marginTop: 2 }}>por pessoa em apto duplo</p>
-                </div>
-              </div>
-
-              {/* Cia aérea */}
-              {data.companhiaAerea && (
-                <p
-                  style={{
-                    color: "#fff",
-                    fontSize: 18,
-                    fontWeight: 700,
-                    textAlign: "right",
-                    marginTop: 8,
-                    opacity: 0.9,
-                  }}
-                >
-                  {data.companhiaAerea}
-                </p>
-              )}
-
-              {/* Data pill */}
-              {data.dataInicio && data.dataFim && (
-                <div
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                    background: "#00b4c8",
-                    color: "#003d45",
-                    fontSize: 14,
-                    fontWeight: 700,
-                    padding: "7px 18px",
-                    borderRadius: 30,
-                    marginTop: 12,
-                  }}
-                >
-                  📅 {data.dataInicio} a {data.dataFim}
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div
-              style={{
-                position: "absolute",
-                bottom: 60,
-                left: 0,
-                right: 0,
-                textAlign: "center",
-                borderTop: "1px solid rgba(255,255,255,0.1)",
-                paddingTop: 10,
-              }}
-            >
-              <p style={{ color: "#fff", fontSize: 13, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase" }}>
-                UM PRODUTO BWT OPERADORA
-              </p>
-            </div>
-            <div
-              style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "#f0ede8", padding: "8px 20px" }}
-            >
-              <p style={{ color: "#555", fontSize: 8.5, lineHeight: 1.5 }}>{COND_PADRAO}</p>
-            </div>
-          </div>
+        <div style={{ borderRadius: 12, overflow: "hidden", boxShadow: "0 10px 40px rgba(0,0,0,0.3)" }}>
+          <canvas ref={previewRef} width={PW} height={PH} style={{ display: "block" }} />
         </div>
       </div>
 
       <p className="text-center text-xs text-muted-foreground">
-        Preview 360px · Exporta em 1080×1350px · Padrão Story BWT
+        Preview {PW}px · Exporta em 1080×1350px · Padrão Story BWT
       </p>
     </div>
   );
