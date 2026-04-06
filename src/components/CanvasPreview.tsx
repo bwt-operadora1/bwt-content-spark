@@ -2,6 +2,7 @@ import { Download, Image as ImageIcon } from "lucide-react";
 import { useRef } from "react";
 import { toPng } from "html-to-image";
 import { TravelData } from "@/types/travel";
+import bwtLogo from "@/assets/bwt-logo.png";
 import { Button } from "@/components/ui/button";
 
 interface CanvasPreviewProps {
@@ -65,7 +66,7 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
               transformOrigin: "top left",
               position: "relative",
               fontFamily: "'Inter', sans-serif",
-              background: "#0a2540",
+              background: "#5B21B6",
               overflow: "hidden",
             }}
           >
@@ -80,7 +81,7 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
               }}
             />
             {/* Gradient overlays */}
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 30%, rgba(0,30,60,0.85) 65%, rgba(0,20,45,0.95) 100%)" }} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 30%, rgba(91,33,182,0.85) 65%, rgba(60,20,130,0.95) 100%)" }} />
 
             {/* Discount Badge - Top Right */}
             {data.desconto && (
@@ -116,7 +117,7 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
                 height: 200,
                 borderRadius: "50%",
                 border: "4px solid #d4a853",
-                background: "radial-gradient(circle, rgba(0,40,80,0.9), rgba(0,20,50,0.95))",
+                background: "radial-gradient(circle, rgba(91,33,182,0.9), rgba(60,20,130,0.95))",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -243,16 +244,20 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
               </div>
             )}
 
-            {/* Footer */}
+            {/* Footer with BWT Logo */}
             <div style={{
               position: "absolute",
-              bottom: 60,
+              bottom: 40,
               left: 0,
               right: 0,
-              textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 8,
             }}>
-              <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 16, fontWeight: 600, letterSpacing: 3, textTransform: "uppercase" }}>
-                UM PRODUTO BWT OPERADORA
+              <img src={bwtLogo} alt="BWT Operadora" style={{ height: 50, objectFit: "contain" }} />
+              <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase" }}>
+                OPERADORA DE TURISMO
               </p>
             </div>
 
@@ -262,7 +267,7 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
               bottom: 0,
               left: 0,
               right: 0,
-              background: "rgba(0,10,30,0.9)",
+              background: "rgba(60,20,130,0.9)",
               padding: "10px 40px",
             }}>
               <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 9, lineHeight: 1.4, textAlign: "center" }}>
