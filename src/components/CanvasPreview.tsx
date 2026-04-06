@@ -1,285 +1,635 @@
-import { Download, Image as ImageIcon } from "lucide-react";
-import { useRef } from "react";
-import { toPng } from "html-to-image";
+import { Download, Image as ImageIcon, RefreshCw } from "lucide-react";
+import { useRef, useState } from "react";
 import { TravelData } from "@/types/travel";
-import bwtLogo from "@/assets/bwt-logo.png";
 import { Button } from "@/components/ui/button";
 
 interface CanvasPreviewProps {
   data: TravelData;
 }
 
+// Paleta de cores por destino — sem dependência de imagem externa
+const DEST_PALETTE: Record<string, { sky: string; water: string; sand: string; palm: string; accent: string }> = {
+  cancun: { sky: "#87ceeb", water: "#00bcd4", sand: "#f4d03f", palm: "#1a6e30", accent: "#00b4c8" },
+  "punta cana": { sky: "#87d3eb", water: "#20b2aa", sand: "#f5deb3", palm: "#1a7a40", accent: "#00c8b4" },
+  aruba: { sky: "#a8d8ea", water: "#00ced1", sand: "#deb887", palm: "#8b6914", accent: "#00b4c8" },
+  jamaica: { sky: "#7ec8e3", water: "#008080", sand: "#f0e68c", palm: "#1a6e20", accent: "#00c850" },
+  bahamas: { sky: "#b0e0e6", water: "#40e0d0", sand: "#ffe4b5", palm: "#2a8a50", accent: "#40e0d0" },
+  cuba: { sky: "#87ceeb", water: "#008b8b", sand: "#d2b48c", palm: "#8b6914", accent: "#00b4c8" },
+  europa: { sky: "#b0c4de", water: "#4169e1", sand: "#e8e8e8", palm: "#2a3a6e", accent: "#4169e1" },
+  miami: { sky: "#87ceeb", water: "#00ced1", sand: "#fffacd", palm: "#20a050", accent: "#ff69b4" },
+  default: { sky: "#87ceeb", water: "#00bcd4", sand: "#f4d03f", palm: "#1a6e30", accent: "#00b4c8" },
+};
+
+function getPalette(destino: string) {
+  const d = destino.toLowerCase();
+  for (const key of Object.keys(DEST_PALETTE)) {
+    if (d.includes(key)) return DEST_PALETTE[key];
+  }
+  return DEST_PALETTE.default;
+}
+
+const COND_PADRAO =
+  "Valores por pessoa em Reais. Sujeito a disponibilidade e alterações sem prévio aviso. Parcelamento em até 10x, respeitando parcela mínima de R$ 150,00. Nos reservamos o direito a correções de possíveis erros de digitação. Consulte regras gerais em www.bwtoperadora.com.br";
+
 const CanvasPreview = ({ data }: CanvasPreviewProps) => {
   const canvasRef = useRef<HTMLDivElement>(null);
+  const [exporting, setExporting] = useState(false);
 
+  const pal = getPalette(data.destino);
+
+  // Exportação via Canvas 2D nativo — sem html-to-image, sem CORS
   const handleExport = async () => {
-    if (!canvasRef.current) return;
+    setExporting(true);
     try {
-      const dataUrl = await toPng(canvasRef.current, {
-        width: 1080,
-        height: 1350,
-        pixelRatio: 1,
+      const W = 1080,
+        H = 1350,
+        scale = 3;
+      const canvas = document.createElement("canvas");
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext("2d")!;
+
+      // Fundo navy
+      ctx.fillStyle = "#0d1b2a";
+      roundRect(ctx, 0, 0, W, H, 0);
+      ctx.fill();
+
+      const imgH = Math.round(H * 0.42);
+
+      // Céu
+      const skyGrd = ctx.createLinearGradient(0, 0, 0, imgH * 0.6);
+      skyGrd.addColorStop(0, pal.sky);
+      skyGrd.addColorStop(1, "#d4f1f9");
+      ctx.fillStyle = skyGrd;
+      ctx.fillRect(0, 0, W, imgH * 0.6);
+
+      // Sol
+      ctx.fillStyle = "rgba(255,253,200,0.9)";
+      ctx.beginPath();
+      ctx.arc(W * 0.74, imgH * 0.16, 60, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Nuvens
+      ctx.fillStyle = "rgba(255,255,255,0.6)";
+      [
+        [0.08, 0.18, 70, 28],
+        [0.28, 0.13, 90, 34],
+        [0.48, 0.17, 75, 28],
+        [0.62, 0.11, 80, 30],
+      ].forEach(([x, y, rx, ry]) => {
+        ctx.beginPath();
+        ctx.ellipse(W * x, imgH * y, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
       });
-      const link = document.createElement("a");
-      link.download = `bwt-${data.destino.toLowerCase().replace(/\s/g, "-")}.png`;
-      link.href = dataUrl;
-      link.click();
+
+      // Água
+      const waterGrd = ctx.createLinearGradient(0, imgH * 0.6, 0, imgH * 0.82);
+      waterGrd.addColorStop(0, pal.water);
+      waterGrd.addColorStop(1, "#0d5a70");
+      ctx.fillStyle = waterGrd;
+      ctx.fillRect(0, imgH * 0.6, W, imgH * 0.22);
+
+      // Ondas
+      ctx.strokeStyle = "rgba(255,255,255,0.25)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, imgH * 0.6);
+      for (let x = 0; x <= W; x += 10) ctx.lineTo(x, imgH * 0.6 + 6 * Math.sin((x / 80) * Math.PI));
+      ctx.stroke();
+
+      // Areia
+      ctx.fillStyle = pal.sand;
+      ctx.fillRect(0, imgH * 0.82, W, imgH * 0.18);
+
+      // Palmeiras
+      drawPalm(ctx, W * 0.14, imgH * 0.2, imgH * 0.34, pal.palm);
+      drawPalm(ctx, W * 0.72, imgH * 0.2, imgH * 0.26, pal.palm);
+
+      // Overlay gradiente
+      const ovGrd = ctx.createLinearGradient(0, 0, 0, imgH);
+      ovGrd.addColorStop(0, "rgba(0,0,0,0)");
+      ovGrd.addColorStop(0.65, "rgba(0,0,0,0)");
+      ovGrd.addColorStop(1, "rgba(13,27,42,0.75)");
+      ctx.fillStyle = ovGrd;
+      ctx.fillRect(0, 0, W, imgH);
+
+      // Badge desconto
+      if (data.desconto) {
+        ctx.fillStyle = "#00b4c8";
+        ctx.fillRect(W - 230, 0, 230, 28);
+        ctx.fillStyle = "#003d45";
+        ctx.font = `bold ${18}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.fillText("COM ATÉ", W - 115, 20);
+        ctx.fillStyle = "#000";
+        ctx.fillRect(W - 230, 28, 230, 52);
+        ctx.fillStyle = "#fff";
+        ctx.font = `900 ${52}px sans-serif`;
+        ctx.fillText(`${data.desconto}% OFF`, W - 115, 73);
+      }
+
+      // Tag produto
+      ctx.fillStyle = "rgba(13,27,42,0.88)";
+      roundRect(ctx, 40, imgH - 52, 200, 36, 18);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.font = `600 ${20}px sans-serif`;
+      ctx.textAlign = "left";
+      ctx.fillText(`✈ ${data.tipoProduto || "Aéreo + Hotel"}`, 58, imgH - 28);
+
+      // Selo campanha
+      if (data.campanha) {
+        ctx.strokeStyle = "#00b4c8";
+        ctx.lineWidth = 6;
+        ctx.fillStyle = "#062d36";
+        ctx.beginPath();
+        ctx.arc(W - 100, imgH + 40, 90, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#00b4c8";
+        ctx.font = `bold ${16}px sans-serif`;
+        ctx.textAlign = "center";
+        wrapText(ctx, data.campanha.toUpperCase(), W - 100, imgH + 20, 150, 18);
+        ctx.fillStyle = "#fff";
+        ctx.font = `900 ${22}px sans-serif`;
+        ctx.fillText("2026", W - 100, imgH + 55);
+      }
+
+      // Título destino
+      const bodyY = imgH + (data.campanha ? 80 : 50);
+      ctx.fillStyle = "#fff";
+      ctx.font = `800 ${data.destino.length > 12 ? 56 : 66}px 'Barlow Condensed', sans-serif`;
+      ctx.textAlign = "left";
+      ctx.fillText(data.destino, 60, bodyY);
+
+      // INCLUI
+      const items = data.inclui || [];
+      let iy = bodyY + 44;
+      ctx.fillStyle = "#fff";
+      ctx.font = `700 ${18}px sans-serif`;
+      ctx.fillText("INCLUI", 60, iy);
+      iy += 22;
+      items.slice(0, 5).forEach((item) => {
+        ctx.fillStyle = "#00b4c8";
+        ctx.font = `${17}px sans-serif`;
+        ctx.fillText("•", 60, iy);
+        ctx.fillStyle = "#c8d8e8";
+        ctx.font = `${17}px sans-serif`;
+        ctx.fillText(item.substring(0, 52), 82, iy);
+        iy += 22;
+      });
+
+      // Preço
+      if (data.precoParcela) {
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#8aaabb";
+        ctx.font = `${16}px sans-serif`;
+        ctx.fillText("A PARTIR DE", W - 60, bodyY + 10);
+        ctx.fillStyle = "#00d4e8";
+        ctx.font = `900 ${88}px sans-serif`;
+        ctx.fillText(`${data.parcelas}x`, W - 60, bodyY + 78);
+        ctx.fillStyle = "#fff";
+        ctx.font = `900 ${60}px sans-serif`;
+        ctx.fillText(`R$ ${data.precoParcela.replace("R$ ", "")}`, W - 60, bodyY + 130);
+        if (data.precoAVista) {
+          ctx.fillStyle = "#fff";
+          ctx.font = `600 ${18}px sans-serif`;
+          ctx.fillText(`Ou ${data.precoAVista}`, W - 60, bodyY + 155);
+        }
+        ctx.fillStyle = "#8aaabb";
+        ctx.font = `${15}px sans-serif`;
+        ctx.fillText("por pessoa em apto duplo", W - 60, bodyY + 175);
+      }
+
+      // Cia aérea
+      if (data.companhiaAerea) {
+        ctx.fillStyle = "#fff";
+        ctx.font = `800 ${28}px sans-serif`;
+        ctx.textAlign = "right";
+        ctx.fillText(data.companhiaAerea, W - 60, iy + 10);
+        iy += 36;
+      }
+
+      // Data pill
+      if (data.dataInicio && data.dataFim) {
+        ctx.fillStyle = "#00b4c8";
+        ctx.textAlign = "left";
+        roundRect(ctx, 60, iy + 4, 320, 36, 18);
+        ctx.fill();
+        ctx.fillStyle = "#003d45";
+        ctx.font = `700 ${18}px sans-serif`;
+        ctx.fillText(`📅 ${data.dataInicio} a ${data.dataFim}`, 80, iy + 27);
+        iy += 52;
+      }
+
+      // Footer
+      const footerY = H - 100;
+      ctx.strokeStyle = "rgba(255,255,255,0.1)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, footerY);
+      ctx.lineTo(W, footerY);
+      ctx.stroke();
+      ctx.fillStyle = "#fff";
+      ctx.font = `700 ${20}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.fillText("UM PRODUTO BWT OPERADORA", W / 2, footerY + 28);
+
+      // Rodapé condições
+      ctx.fillStyle = "#f0ede8";
+      ctx.fillRect(0, footerY + 46, W, H - (footerY + 46));
+      ctx.fillStyle = "#444";
+      ctx.font = `${13}px sans-serif`;
+      wrapText(ctx, COND_PADRAO, 20, footerY + 64, W - 40, 16);
+
+      // Download
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `bwt-${data.destino.toLowerCase().replace(/\s/g, "-")}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }, "image/png");
     } catch (err) {
       console.error("Export failed:", err);
+    } finally {
+      setExporting(false);
     }
   };
 
-  // Scale: preview at 400px wide, export at 1080px
-  const scale = 400 / 1080;
-  const canvasW = 1080;
-  const canvasH = 1350;
+  // Utilitários canvas
+  function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  }
+
+  function drawPalm(ctx: CanvasRenderingContext2D, px: number, py: number, size: number, color: string) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = size * 0.055;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(px, py + size);
+    ctx.quadraticCurveTo(px + size * 0.12, py + size * 0.5, px + size * 0.06, py);
+    ctx.stroke();
+    [
+      [-0.4, -0.12],
+      [0, 0],
+      [0.4, -0.1],
+    ].forEach(([angle, dy]) => {
+      ctx.save();
+      ctx.translate(px + size * 0.06, py + size * dy);
+      ctx.rotate(angle);
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, size * 0.32, size * 0.09, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number, lineH: number) {
+    const words = text.split(" ");
+    let line = "";
+    let cy = y;
+    ctx.textAlign = "left";
+    for (const w of words) {
+      const test = line + (line ? " " : "") + w;
+      if (ctx.measureText(test).width > maxW && line) {
+        ctx.fillText(line, x, cy);
+        cy += lineH;
+        line = w;
+      } else line = test;
+    }
+    if (line) ctx.fillText(line, x, cy);
+  }
+
+  // Preview scale
+  const scale = 360 / 1080;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <ImageIcon className="w-5 h-5 text-accent" />
+          <ImageIcon className="w-5 h-5" style={{ color: "#00b4c8" }} />
           <h2 className="text-2xl font-display font-semibold">Lâmina Estática</h2>
         </div>
-        <Button onClick={handleExport} size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
-          <Download className="w-4 h-4 mr-2" />
-          Exportar PNG
+        <Button
+          onClick={handleExport}
+          disabled={exporting}
+          size="sm"
+          style={{ background: "#00b4c8", color: "#0d1b2a" }}
+          className="hover:opacity-90"
+        >
+          {exporting ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+          {exporting ? "Gerando..." : "Exportar PNG 1080×1350"}
         </Button>
       </div>
 
       <div className="flex justify-center">
         <div
           style={{
-            width: canvasW * scale,
-            height: canvasH * scale,
+            width: 1080 * scale,
+            height: 1350 * scale,
             overflow: "hidden",
             borderRadius: 12,
-            boxShadow: "0 10px 40px rgba(0,0,0,0.25)",
+            boxShadow: "0 10px 40px rgba(0,0,0,0.3)",
           }}
         >
           <div
             ref={canvasRef}
             style={{
-              width: canvasW,
-              height: canvasH,
+              width: 1080,
+              height: 1350,
               transform: `scale(${scale})`,
               transformOrigin: "top left",
               position: "relative",
               fontFamily: "'Inter', sans-serif",
-              background: "#5B21B6",
+              background: "#0d1b2a",
               overflow: "hidden",
             }}
           >
-            {/* Background Image */}
+            {/* Imagem ilustrada do destino */}
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "42%" }}>
+              {/* Céu */}
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: `linear-gradient(180deg, ${pal.sky} 0%, #d4f1f9 55%, ${pal.water} 55%, #0d5a70 78%, ${pal.sand} 78%, ${pal.sand} 100%)`,
+                }}
+              />
+              {/* Sol */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: "10%",
+                  right: "28%",
+                  width: 80,
+                  height: 80,
+                  borderRadius: "50%",
+                  background: "rgba(255,253,200,0.9)",
+                }}
+              />
+              {/* Overlay gradiente bottom */}
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "linear-gradient(180deg, transparent 60%, rgba(13,27,42,0.7) 100%)",
+                }}
+              />
+            </div>
+
+            {/* Badge desconto */}
+            {data.desconto && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  right: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-end",
+                }}
+              >
+                <div
+                  style={{
+                    background: "#00b4c8",
+                    color: "#003d45",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    padding: "4px 16px",
+                    letterSpacing: 1,
+                  }}
+                >
+                  COM ATÉ
+                </div>
+                <div
+                  style={{
+                    background: "#000",
+                    color: "#fff",
+                    fontSize: 56,
+                    fontWeight: 900,
+                    padding: "0 16px",
+                    lineHeight: 1.1,
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 4,
+                  }}
+                >
+                  {data.desconto}
+                  <span style={{ fontSize: 20, fontWeight: 700, color: "#ccc" }}>% OFF</span>
+                </div>
+              </div>
+            )}
+
+            {/* Tag produto */}
             <div
               style={{
                 position: "absolute",
-                inset: 0,
-                backgroundImage: `url(https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=1200&q=80)`,
-                backgroundSize: "cover",
-                backgroundPosition: "center top",
+                top: "38%",
+                left: 40,
+                background: "rgba(13,27,42,0.9)",
+                border: "1px solid rgba(0,180,200,0.4)",
+                borderRadius: 30,
+                padding: "8px 20px",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
               }}
-            />
-            {/* Gradient overlays */}
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 30%, rgba(91,33,182,0.85) 65%, rgba(60,20,130,0.95) 100%)" }} />
+            >
+              <span style={{ color: "#fff", fontSize: 18, fontWeight: 600 }}>
+                ✈ {data.tipoProduto || "Aéreo + Hotel"}
+              </span>
+            </div>
 
-            {/* Discount Badge - Top Right */}
-            {data.desconto && (
-              <div style={{
-                position: "absolute",
-                top: 0,
-                right: 0,
-                width: 220,
-                height: 100,
-                background: "linear-gradient(135deg, #00b4d8, #0096c7)",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                borderBottomLeftRadius: 16,
-              }}>
-                <span style={{ color: "white", fontSize: 14, fontWeight: 500, letterSpacing: 1 }}>COM ATÉ</span>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                  <span style={{ color: "white", fontSize: 56, fontWeight: 800, lineHeight: 1 }}>{data.desconto}</span>
-                  <span style={{ color: "white", fontSize: 22, fontWeight: 700 }}>%</span>
-                </div>
-                <span style={{ color: "white", fontSize: 16, fontWeight: 700, letterSpacing: 2 }}>OFF</span>
-              </div>
-            )}
-
-            {/* Campaign Seal - Right side */}
+            {/* Selo campanha */}
             {data.campanha && (
-              <div style={{
-                position: "absolute",
-                top: 280,
-                right: 40,
-                width: 200,
-                height: 200,
-                borderRadius: "50%",
-                border: "4px solid #d4a853",
-                background: "radial-gradient(circle, rgba(91,33,182,0.9), rgba(60,20,130,0.95))",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 20,
-              }}>
-                <span style={{ color: "#d4a853", fontSize: 13, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase" }}>🌴</span>
-                <span style={{ color: "white", fontSize: 16, fontWeight: 800, textAlign: "center", lineHeight: 1.2, textTransform: "uppercase", marginTop: 4 }}>
+              <div
+                style={{
+                  position: "absolute",
+                  top: "36%",
+                  right: 40,
+                  width: 130,
+                  height: 130,
+                  borderRadius: "50%",
+                  background: "#062d36",
+                  border: "3px solid #00b4c8",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <span
+                  style={{
+                    color: "#00b4c8",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    textAlign: "center",
+                    lineHeight: 1.2,
+                    padding: "0 10px",
+                  }}
+                >
                   {data.campanha}
                 </span>
-                <div style={{ display: "flex", gap: 30, marginTop: 8 }}>
-                  <span style={{ color: "#d4a853", fontSize: 14, fontWeight: 700 }}>20</span>
-                  <span style={{ color: "#d4a853", fontSize: 14, fontWeight: 700 }}>26</span>
+                <span style={{ color: "#fff", fontSize: 16, fontWeight: 900, marginTop: 4 }}>2026</span>
+              </div>
+            )}
+
+            {/* Corpo */}
+            <div style={{ position: "absolute", top: "44%", left: 0, right: 0, bottom: 0, padding: "20px 40px 0" }}>
+              <h2
+                style={{
+                  color: "#fff",
+                  fontSize: 72,
+                  fontWeight: 800,
+                  lineHeight: 1.05,
+                  fontFamily: "'Barlow Condensed', sans-serif",
+                  letterSpacing: -1,
+                }}
+              >
+                {data.destino}
+              </h2>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  marginTop: 16,
+                  gap: 20,
+                }}
+              >
+                {/* Inclui */}
+                <div style={{ flex: 1 }}>
+                  <p
+                    style={{
+                      color: "#fff",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      letterSpacing: 2,
+                      marginBottom: 8,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    INCLUI
+                  </p>
+                  {(data.inclui || []).slice(0, 5).map((item, i) => (
+                    <div key={i} style={{ display: "flex", gap: 8, marginBottom: 5 }}>
+                      <span style={{ color: "#00b4c8", fontSize: 13, flexShrink: 0 }}>•</span>
+                      <span style={{ color: "#c8d8e8", fontSize: 13, lineHeight: 1.4 }}>{item}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Preço */}
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <p style={{ color: "#8aaabb", fontSize: 12, letterSpacing: 1, textTransform: "uppercase" }}>
+                    A PARTIR DE
+                  </p>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "baseline",
+                      justifyContent: "flex-end",
+                      gap: 4,
+                      marginTop: 2,
+                    }}
+                  >
+                    <span style={{ color: "#00d4e8", fontSize: 36, fontWeight: 900 }}>{data.parcelas}x</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "baseline", justifyContent: "flex-end" }}>
+                    <span style={{ color: "#fff", fontSize: 20, fontWeight: 600 }}>R$</span>
+                    <span style={{ color: "#fff", fontSize: 56, fontWeight: 900, lineHeight: 1 }}>
+                      {data.precoParcela?.replace("R$ ", "")}
+                    </span>
+                  </div>
+                  {data.precoAVista && (
+                    <p style={{ color: "#fff", fontSize: 13, fontWeight: 600 }}>Ou {data.precoAVista}</p>
+                  )}
+                  <p style={{ color: "#8aaabb", fontSize: 11, marginTop: 2 }}>por pessoa em apto duplo</p>
                 </div>
               </div>
-            )}
 
-            {/* Product Type Badge */}
-            {data.tipoProduto && (
-              <div style={{
-                position: "absolute",
-                top: 530,
-                left: 60,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                background: "linear-gradient(135deg, #00b4d8, #0096c7)",
-                padding: "10px 24px",
-                borderRadius: 8,
-              }}>
-                <span style={{ fontSize: 20 }}>✈️</span>
-                <span style={{ color: "white", fontSize: 22, fontWeight: 700, letterSpacing: 1 }}>{data.tipoProduto}</span>
-              </div>
-            )}
-
-            {/* Destination Title */}
-            <div style={{
-              position: "absolute",
-              top: 590,
-              left: 60,
-              right: 60,
-            }}>
-              <h2 style={{
-                color: "white",
-                fontSize: 52,
-                fontWeight: 800,
-                lineHeight: 1.1,
-                textShadow: "0 2px 20px rgba(0,0,0,0.5)",
-                fontFamily: "'Playfair Display', serif",
-              }}>
-                {data.destino} Impressionante
-              </h2>
-            </div>
-
-            {/* Inclui Section */}
-            <div style={{
-              position: "absolute",
-              top: 720,
-              left: 60,
-              width: 520,
-            }}>
-              <p style={{ color: "#d4a853", fontSize: 18, fontWeight: 800, letterSpacing: 2, marginBottom: 12, textTransform: "uppercase" }}>INCLUI</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {(data.inclui || []).map((item, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                    <span style={{ color: "#d4a853", fontSize: 14, marginTop: 2 }}>•</span>
-                    <span style={{ color: "white", fontSize: 15, lineHeight: 1.4 }}>{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Pricing Block - Right side */}
-            <div style={{
-              position: "absolute",
-              top: 720,
-              right: 60,
-              textAlign: "right",
-            }}>
-              <span style={{ color: "white", fontSize: 16, fontWeight: 500, letterSpacing: 1, display: "block" }}>A PARTIR DE</span>
-              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "flex-end", gap: 4, marginTop: 4 }}>
-                <span style={{ color: "#d4a853", fontSize: 28, fontWeight: 700 }}>{data.parcelas}x</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "flex-end", gap: 4 }}>
-                <span style={{ color: "white", fontSize: 18, fontWeight: 500 }}>R$</span>
-                <span style={{ color: "white", fontSize: 72, fontWeight: 800, lineHeight: 1 }}>
-                  {data.precoParcela?.replace("R$ ", "")}
-                </span>
-              </div>
-              <p style={{ color: "white", fontSize: 15, fontWeight: 500, marginTop: 4 }}>
-                Ou {data.precoAVista}
-              </p>
-              <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 2 }}>por pessoa em apto duplo</p>
-            </div>
-
-            {/* Date Badge */}
-            {data.dataInicio && data.dataFim && (
-              <div style={{
-                position: "absolute",
-                bottom: 160,
-                left: 60,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                background: "linear-gradient(135deg, #00b4d8, #0096c7)",
-                padding: "10px 20px",
-                borderRadius: 8,
-              }}>
-                <span style={{ fontSize: 18 }}>📅</span>
-                <span style={{ color: "white", fontSize: 20, fontWeight: 700 }}>{data.dataInicio} a {data.dataFim}</span>
-              </div>
-            )}
-
-            {/* Airline Logo */}
-            {data.companhiaAerea && (
-              <div style={{
-                position: "absolute",
-                bottom: 130,
-                right: 60,
-              }}>
-                <span style={{ color: "#FF6600", fontSize: 48, fontWeight: 900, fontFamily: "sans-serif", letterSpacing: 4 }}>
+              {/* Cia aérea */}
+              {data.companhiaAerea && (
+                <p
+                  style={{
+                    color: "#fff",
+                    fontSize: 18,
+                    fontWeight: 700,
+                    textAlign: "right",
+                    marginTop: 8,
+                    opacity: 0.9,
+                  }}
+                >
                   {data.companhiaAerea}
-                </span>
-              </div>
-            )}
+                </p>
+              )}
 
-            {/* Footer with BWT Logo */}
-            <div style={{
-              position: "absolute",
-              bottom: 40,
-              left: 0,
-              right: 0,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 8,
-            }}>
-              <img src={bwtLogo} alt="BWT Operadora" style={{ height: 50, objectFit: "contain" }} />
-              <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase" }}>
-                OPERADORA DE TURISMO
-              </p>
+              {/* Data pill */}
+              {data.dataInicio && data.dataFim && (
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    background: "#00b4c8",
+                    color: "#003d45",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    padding: "7px 18px",
+                    borderRadius: 30,
+                    marginTop: 12,
+                  }}
+                >
+                  📅 {data.dataInicio} a {data.dataFim}
+                </div>
+              )}
             </div>
 
-            {/* Fine Print */}
-            <div style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              background: "rgba(60,20,130,0.9)",
-              padding: "10px 40px",
-            }}>
-              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 9, lineHeight: 1.4, textAlign: "center" }}>
-                Condições Específicas: Tarifa promocional, não reembolsável. Consulte valores para demais datas. Sujeito a disponibilidade e alterações sem prévio aviso.
+            {/* Footer */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: 60,
+                left: 0,
+                right: 0,
+                textAlign: "center",
+                borderTop: "1px solid rgba(255,255,255,0.1)",
+                paddingTop: 10,
+              }}
+            >
+              <p style={{ color: "#fff", fontSize: 13, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase" }}>
+                UM PRODUTO BWT OPERADORA
               </p>
+            </div>
+            <div
+              style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "#f0ede8", padding: "8px 20px" }}
+            >
+              <p style={{ color: "#555", fontSize: 8.5, lineHeight: 1.5 }}>{COND_PADRAO}</p>
             </div>
           </div>
         </div>
       </div>
 
       <p className="text-center text-xs text-muted-foreground">
-        Preview em 400px — exporta em 1080×1350
+        Preview 360px · Exporta em 1080×1350px · Padrão Story BWT
       </p>
     </div>
   );
