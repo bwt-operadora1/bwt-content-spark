@@ -14,7 +14,7 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
           <Video className="w-5 h-5 text-accent" />
           <h2 className="text-2xl font-display font-semibold">Vídeo Viral</h2>
         </div>
-        <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90" disabled>
+        <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
           <Play className="w-4 h-4 mr-2" />
           Gerar Vídeo
         </Button>
