@@ -1,6 +1,7 @@
-import { Upload, FileText, Sparkles } from "lucide-react";
-import { useState, useCallback } from "react";
+import { Upload, Sparkles, AlertCircle } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
 import { TravelData, SAMPLE_DATA } from "@/types/travel";
+import { extractTextFromPdf, parseTravelData } from "@/lib/pdfParser";
 
 interface PdfUploadProps {
   onDataExtracted: (data: TravelData) => void;
@@ -9,26 +10,47 @@ interface PdfUploadProps {
 const PdfUpload = ({ onDataExtracted }: PdfUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-      simulateExtraction();
-    },
-    []
-  );
+  const processFile = async (file: File) => {
+    if (file.type !== "application/pdf") {
+      setError("Por favor, selecione um arquivo PDF.");
+      return;
+    }
 
-  const simulateExtraction = () => {
     setIsProcessing(true);
-    setTimeout(() => {
+    setError(null);
+
+    try {
+      const text = await extractTextFromPdf(file);
+
+      if (!text || text.trim().length < 20) {
+        setError("Não foi possível extrair texto do PDF. O arquivo pode ser uma imagem escaneada.");
+        setIsProcessing(false);
+        return;
+      }
+
+      const data = parseTravelData(text);
+      onDataExtracted(data);
+    } catch (err) {
+      console.error("PDF processing error:", err);
+      setError("Erro ao processar o PDF. Tente novamente ou use os dados de exemplo.");
+    } finally {
       setIsProcessing(false);
-      onDataExtracted(SAMPLE_DATA);
-    }, 2000);
+    }
   };
 
-  const handleFileSelect = () => {
-    simulateExtraction();
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) processFile(file);
+  }, []);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
   };
 
   return (
@@ -42,6 +64,14 @@ const PdfUpload = ({ onDataExtracted }: PdfUploadProps) => {
         </p>
       </div>
 
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
+
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -49,14 +79,13 @@ const PdfUpload = ({ onDataExtracted }: PdfUploadProps) => {
         }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
-        onClick={handleFileSelect}
+        onClick={() => fileInputRef.current?.click()}
         className={`
           w-full max-w-lg p-12 rounded-2xl border-2 border-dashed cursor-pointer
           transition-all duration-300 text-center
-          ${
-            isDragging
-              ? "border-accent bg-accent/10 scale-[1.02]"
-              : "border-border hover:border-accent/50 hover:bg-muted/50"
+          ${isDragging
+            ? "border-accent bg-accent/10 scale-[1.02]"
+            : "border-border hover:border-accent/50 hover:bg-muted/50"
           }
           ${isProcessing ? "pointer-events-none opacity-70" : ""}
         `}
@@ -82,6 +111,13 @@ const PdfUpload = ({ onDataExtracted }: PdfUploadProps) => {
           </div>
         )}
       </div>
+
+      {error && (
+        <div className="flex items-center gap-2 text-destructive text-sm max-w-lg">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <p>{error}</p>
+        </div>
+      )}
 
       <button
         onClick={() => onDataExtracted(SAMPLE_DATA)}
