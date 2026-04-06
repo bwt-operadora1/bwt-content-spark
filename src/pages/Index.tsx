@@ -44,7 +44,15 @@ const Index = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            <DataDashboard data={travelData} onReset={() => setTravelData(null)} />
+            <div className="flex justify-between items-center">
+              <DataDashboard data={travelData} onChange={setTravelData} />
+              <button
+                onClick={() => setTravelData(null)}
+                className="text-sm text-muted-foreground hover:text-foreground underline"
+              >
+                Novo Upload
+              </button>
+            </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-4 bg-muted">
