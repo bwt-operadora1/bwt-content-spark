@@ -346,36 +346,48 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
               overflow: "hidden",
             }}
           >
-            {/* Imagem ilustrada do destino */}
+            {/* Imagem do destino */}
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "42%" }}>
-              {/* Céu */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: `linear-gradient(180deg, ${pal.sky} 0%, #d4f1f9 55%, ${pal.water} 55%, #0d5a70 78%, ${pal.sand} 78%, ${pal.sand} 100%)`,
-                }}
-              />
-              {/* Sol */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: "10%",
-                  right: "28%",
-                  width: 80,
-                  height: 80,
-                  borderRadius: "50%",
-                  background: "rgba(255,253,200,0.9)",
-                }}
-              />
+              {bgLoaded ? (
+                <img
+                  src={getUnsplashSearchUrl(destCtx.imageKeyword, 1080, 600)}
+                  alt={data.destino}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  crossOrigin="anonymous"
+                />
+              ) : (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: `linear-gradient(180deg, ${pal.sky} 0%, #d4f1f9 55%, ${pal.water} 55%, #0d5a70 78%, ${pal.sand} 78%, ${pal.sand} 100%)`,
+                  }}
+                />
+              )}
               {/* Overlay gradiente bottom */}
               <div
                 style={{
                   position: "absolute",
                   inset: 0,
-                  background: "linear-gradient(180deg, transparent 60%, rgba(13,27,42,0.7) 100%)",
+                  background: "linear-gradient(180deg, rgba(0,0,0,0.1) 0%, transparent 30%, rgba(13,27,42,0.8) 100%)",
                 }}
               />
+              {/* Destination description badge */}
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 20,
+                  left: 40,
+                  right: 200,
+                  color: "rgba(255,255,255,0.85)",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  lineHeight: 1.4,
+                  textShadow: "0 1px 3px rgba(0,0,0,0.5)",
+                }}
+              >
+                {destCtx.emoji} {destCtx.description}
+              </div>
             </div>
 
             {/* Badge desconto */}
