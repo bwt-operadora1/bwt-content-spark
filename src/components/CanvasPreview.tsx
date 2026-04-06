@@ -116,7 +116,7 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
                 height: 200,
                 borderRadius: "50%",
                 border: "4px solid #d4a853",
-                background: "radial-gradient(circle, rgba(0,40,80,0.9), rgba(0,20,50,0.95))",
+                background: "radial-gradient(circle, rgba(91,33,182,0.9), rgba(60,20,130,0.95))",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
