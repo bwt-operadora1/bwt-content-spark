@@ -1,31 +1,15 @@
 import { Download, Image as ImageIcon, RefreshCw } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { TravelData } from "@/types/travel";
 import { Button } from "@/components/ui/button";
+import { getDestinationContext, getUnsplashSearchUrl, type DestinationContext } from "@/lib/destinationContext";
 
 interface CanvasPreviewProps {
   data: TravelData;
 }
 
-// Paleta de cores por destino — sem dependência de imagem externa
-const DEST_PALETTE: Record<string, { sky: string; water: string; sand: string; palm: string; accent: string }> = {
-  cancun: { sky: "#87ceeb", water: "#00bcd4", sand: "#f4d03f", palm: "#1a6e30", accent: "#00b4c8" },
-  "punta cana": { sky: "#87d3eb", water: "#20b2aa", sand: "#f5deb3", palm: "#1a7a40", accent: "#00c8b4" },
-  aruba: { sky: "#a8d8ea", water: "#00ced1", sand: "#deb887", palm: "#8b6914", accent: "#00b4c8" },
-  jamaica: { sky: "#7ec8e3", water: "#008080", sand: "#f0e68c", palm: "#1a6e20", accent: "#00c850" },
-  bahamas: { sky: "#b0e0e6", water: "#40e0d0", sand: "#ffe4b5", palm: "#2a8a50", accent: "#40e0d0" },
-  cuba: { sky: "#87ceeb", water: "#008b8b", sand: "#d2b48c", palm: "#8b6914", accent: "#00b4c8" },
-  europa: { sky: "#b0c4de", water: "#4169e1", sand: "#e8e8e8", palm: "#2a3a6e", accent: "#4169e1" },
-  miami: { sky: "#87ceeb", water: "#00ced1", sand: "#fffacd", palm: "#20a050", accent: "#ff69b4" },
-  default: { sky: "#87ceeb", water: "#00bcd4", sand: "#f4d03f", palm: "#1a6e30", accent: "#00b4c8" },
-};
-
 function getPalette(destino: string) {
-  const d = destino.toLowerCase();
-  for (const key of Object.keys(DEST_PALETTE)) {
-    if (d.includes(key)) return DEST_PALETTE[key];
-  }
-  return DEST_PALETTE.default;
+  return getDestinationContext(destino).palette;
 }
 
 const COND_PADRAO =
