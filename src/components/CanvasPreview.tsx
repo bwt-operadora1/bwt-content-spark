@@ -18,8 +18,23 @@ const COND_PADRAO =
 const CanvasPreview = ({ data }: CanvasPreviewProps) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
+  const [bgImage, setBgImage] = useState<HTMLImageElement | null>(null);
+  const [bgLoaded, setBgLoaded] = useState(false);
 
-  const pal = getPalette(data.destino);
+  const destCtx = getDestinationContext(data.destino);
+  const pal = destCtx.palette;
+
+  // Load destination background image
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = getUnsplashSearchUrl(destCtx.imageKeyword, 1080, 600);
+    img.onload = () => {
+      setBgImage(img);
+      setBgLoaded(true);
+    };
+    img.onerror = () => setBgLoaded(false);
+  }, [data.destino]);
 
   // Exportação via Canvas 2D nativo — sem html-to-image, sem CORS
   const handleExport = async () => {
