@@ -80,7 +80,7 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
               }}
             />
             {/* Gradient overlays */}
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 30%, rgba(0,30,60,0.85) 65%, rgba(0,20,45,0.95) 100%)" }} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 30%, rgba(91,33,182,0.85) 65%, rgba(60,20,130,0.95) 100%)" }} />
 
             {/* Discount Badge - Top Right */}
             {data.desconto && (
