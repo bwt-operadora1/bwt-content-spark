@@ -1,152 +1,86 @@
-import { useState, useEffect } from "react";
-import { TravelData } from "@/types/travel";
-import PdfUpload from "@/components/PdfUpload";
-import DataDashboard from "@/components/DataDashboard";
-import CanvasPreview from "@/components/CanvasPreview";
-import ScriptGenerator from "@/components/ScriptGenerator";
-import VideoGenerator from "@/components/VideoGenerator";
-import ProductPage from "@/components/ProductPage";
-import { ArrowLeft, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
 
-const Index = () => {
-  const [data, setData] = useState<TravelData | null>(null);
-  const [generated, setGenerated] = useState({ lamina: false, video: false, script: false, pagina: false });
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-  // Salvar sessão no localStorage sempre que data mudar
-  useEffect(() => {
-    if (data) {
-      localStorage.setItem("bwt-session", JSON.stringify(data));
-    }
-  }, [data]);
+@layer base {
+  :root {
+    --background: 210 25% 97%;
+    --foreground: 210 60% 10%;
 
-  const handleDataChange = (newData: TravelData) => {
-    setData(newData);
-  };
+    --card: 0 0% 100%;
+    --card-foreground: 210 60% 10%;
 
-  const handleClear = () => {
-    localStorage.removeItem("bwt-session");
-    setData(null);
-    setGenerated({ lamina: false, video: false, script: false, pagina: false });
-  };
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 60% 10%;
 
-  if (!data) {
-    return <PdfUpload onDataExtracted={setData} />;
+    --primary: 210 60% 12%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 190 30% 92%;
+    --secondary-foreground: 210 60% 12%;
+
+    --muted: 210 20% 94%;
+    --muted-foreground: 210 20% 50%;
+
+    --accent: 190 100% 39%;
+    --accent-foreground: 210 60% 10%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 20% 88%;
+    --input: 210 20% 88%;
+    --ring: 190 100% 39%;
+
+    --radius: 0.75rem;
+
+    /* BWT Brand tokens */
+    --bwt-navy: 210 60% 12%;
+    --bwt-teal: 190 100% 39%;
+    --bwt-teal-dark: 190 100% 28%;
+    --bwt-teal-light: 190 60% 92%;
+    --bwt-white: 0 0% 100%;
+
+    font-family: 'Inter', sans-serif;
   }
 
-  const tabs = [
-    { value: "lamina", label: "Lâmina", icon: "📸", key: "lamina" as const },
-    { value: "video", label: "Vídeo", icon: "🎬", key: "video" as const },
-    { value: "script", label: "Script", icon: "📝", key: "script" as const },
-    { value: "pagina", label: "Página", icon: "🌐", key: "pagina" as const },
-  ];
+  .dark {
+    --background: 210 50% 8%;
+    --foreground: 210 20% 95%;
+    --card: 210 45% 12%;
+    --card-foreground: 210 20% 95%;
+    --popover: 210 45% 12%;
+    --popover-foreground: 210 20% 95%;
+    --primary: 190 100% 39%;
+    --primary-foreground: 210 60% 8%;
+    --secondary: 210 35% 18%;
+    --secondary-foreground: 210 20% 95%;
+    --muted: 210 30% 16%;
+    --muted-foreground: 210 15% 55%;
+    --accent: 190 100% 39%;
+    --accent-foreground: 210 60% 8%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 210 30% 20%;
+    --input: 210 30% 20%;
+    --ring: 190 100% 39%;
+  }
+}
 
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header
-        className="sticky top-0 z-50 border-b"
-        style={{
-          background: "#0d1b2a",
-          borderColor: "rgba(0,180,200,0.2)",
-        }}
-      >
-        <div className="container max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleClear}
-              className="text-white/60 hover:text-white hover:bg-white/10"
-              title="Novo orçamento"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center font-display font-black text-xs"
-                style={{ background: "#00b4c8", color: "#0d1b2a" }}
-              >
-                BWT
-              </div>
-              <span className="font-display font-bold text-white tracking-wide">Content Agent</span>
-            </div>
-          </div>
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground; }
+  h1, h2, h3 { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; }
+}
 
-          <div className="flex items-center gap-3">
-            <div
-              className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium"
-              style={{ background: "rgba(0,180,200,0.15)", color: "#00b4c8" }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-              {data.destino}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClear}
-              className="text-white/50 hover:text-white hover:bg-white/10 gap-1.5 text-xs"
-            >
-              <RefreshCw className="w-3 h-3" />
-              Novo
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Content */}
-      <main className="container max-w-7xl mx-auto px-4 py-6">
-        <div className="grid lg:grid-cols-[360px_1fr] gap-6">
-          {/* Left — DataDashboard */}
-          <div className="space-y-4">
-            <DataDashboard data={data} onChange={handleDataChange} />
-          </div>
-
-          {/* Right — Outputs */}
-          <div>
-            <Tabs
-              defaultValue="lamina"
-              className="w-full"
-              onValueChange={(v) => setGenerated((g) => ({ ...g, [v]: true }))}
-            >
-              <TabsList className="w-full grid grid-cols-4 mb-6 h-12 rounded-xl p-1" style={{ background: "#0d1b2a" }}>
-                {tabs.map((tab) => (
-                  <TabsTrigger
-                    key={tab.value}
-                    value={tab.value}
-                    className="rounded-lg text-xs font-medium gap-1.5 data-[state=active]:text-[#0d1b2a] transition-all"
-                    style={{
-                      color: "rgba(200,216,232,0.6)",
-                    }}
-                  >
-                    <span>{tab.icon}</span>
-                    <span className="hidden sm:inline">{tab.label}</span>
-                    {generated[tab.key] && (
-                      <span className="w-1.5 h-1.5 rounded-full ml-0.5" style={{ background: "#00b4c8" }} />
-                    )}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-
-              <TabsContent value="lamina">
-                <CanvasPreview data={data} />
-              </TabsContent>
-              <TabsContent value="video">
-                <VideoGenerator data={data} />
-              </TabsContent>
-              <TabsContent value="script">
-                <ScriptGenerator data={data} />
-              </TabsContent>
-              <TabsContent value="pagina">
-                <ProductPage data={data} />
-              </TabsContent>
-            </Tabs>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-};
-
-export default Index;
+@layer utilities {
+  .font-display { font-family: 'Barlow Condensed', sans-serif; }
+  .glass-card {
+    @apply bg-card/90 backdrop-blur-md border border-border/50 shadow-sm;
+  }
+  .bwt-gradient {
+    background: linear-gradient(135deg, #0d1b2a 0%, #0d3a4a 100%);
+  }
+}
