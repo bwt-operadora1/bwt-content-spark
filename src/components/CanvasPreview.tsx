@@ -2,6 +2,7 @@ import { Download, Image as ImageIcon } from "lucide-react";
 import { useRef } from "react";
 import { toPng } from "html-to-image";
 import { TravelData } from "@/types/travel";
+import bwtLogo from "@/assets/bwt-logo.png";
 import { Button } from "@/components/ui/button";
 
 interface CanvasPreviewProps {
