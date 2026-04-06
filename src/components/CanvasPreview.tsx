@@ -1,31 +1,15 @@
 import { Download, Image as ImageIcon, RefreshCw } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { TravelData } from "@/types/travel";
 import { Button } from "@/components/ui/button";
+import { getDestinationContext, getUnsplashSearchUrl, type DestinationContext } from "@/lib/destinationContext";
 
 interface CanvasPreviewProps {
   data: TravelData;
 }
 
-// Paleta de cores por destino — sem dependência de imagem externa
-const DEST_PALETTE: Record<string, { sky: string; water: string; sand: string; palm: string; accent: string }> = {
-  cancun: { sky: "#87ceeb", water: "#00bcd4", sand: "#f4d03f", palm: "#1a6e30", accent: "#00b4c8" },
-  "punta cana": { sky: "#87d3eb", water: "#20b2aa", sand: "#f5deb3", palm: "#1a7a40", accent: "#00c8b4" },
-  aruba: { sky: "#a8d8ea", water: "#00ced1", sand: "#deb887", palm: "#8b6914", accent: "#00b4c8" },
-  jamaica: { sky: "#7ec8e3", water: "#008080", sand: "#f0e68c", palm: "#1a6e20", accent: "#00c850" },
-  bahamas: { sky: "#b0e0e6", water: "#40e0d0", sand: "#ffe4b5", palm: "#2a8a50", accent: "#40e0d0" },
-  cuba: { sky: "#87ceeb", water: "#008b8b", sand: "#d2b48c", palm: "#8b6914", accent: "#00b4c8" },
-  europa: { sky: "#b0c4de", water: "#4169e1", sand: "#e8e8e8", palm: "#2a3a6e", accent: "#4169e1" },
-  miami: { sky: "#87ceeb", water: "#00ced1", sand: "#fffacd", palm: "#20a050", accent: "#ff69b4" },
-  default: { sky: "#87ceeb", water: "#00bcd4", sand: "#f4d03f", palm: "#1a6e30", accent: "#00b4c8" },
-};
-
 function getPalette(destino: string) {
-  const d = destino.toLowerCase();
-  for (const key of Object.keys(DEST_PALETTE)) {
-    if (d.includes(key)) return DEST_PALETTE[key];
-  }
-  return DEST_PALETTE.default;
+  return getDestinationContext(destino).palette;
 }
 
 const COND_PADRAO =
@@ -34,8 +18,23 @@ const COND_PADRAO =
 const CanvasPreview = ({ data }: CanvasPreviewProps) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
+  const [bgImage, setBgImage] = useState<HTMLImageElement | null>(null);
+  const [bgLoaded, setBgLoaded] = useState(false);
 
-  const pal = getPalette(data.destino);
+  const destCtx = getDestinationContext(data.destino);
+  const pal = destCtx.palette;
+
+  // Load destination background image
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = getUnsplashSearchUrl(destCtx.imageKeyword, 1080, 600);
+    img.onload = () => {
+      setBgImage(img);
+      setBgLoaded(true);
+    };
+    img.onerror = () => setBgLoaded(false);
+  }, [data.destino]);
 
   // Exportação via Canvas 2D nativo — sem html-to-image, sem CORS
   const handleExport = async () => {
@@ -56,56 +55,42 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
 
       const imgH = Math.round(H * 0.42);
 
-      // Céu
-      const skyGrd = ctx.createLinearGradient(0, 0, 0, imgH * 0.6);
-      skyGrd.addColorStop(0, pal.sky);
-      skyGrd.addColorStop(1, "#d4f1f9");
-      ctx.fillStyle = skyGrd;
-      ctx.fillRect(0, 0, W, imgH * 0.6);
+      // Background image or illustrated fallback
+      if (bgImage) {
+        // Draw the photo covering top area
+        const iw = bgImage.naturalWidth;
+        const ih = bgImage.naturalHeight;
+        const ratio = Math.max(W / iw, imgH / ih);
+        const dw = iw * ratio;
+        const dh = ih * ratio;
+        ctx.drawImage(bgImage, (W - dw) / 2, (imgH - dh) / 2, dw, dh);
+      } else {
+        // Illustrated fallback
+        const skyGrd = ctx.createLinearGradient(0, 0, 0, imgH * 0.6);
+        skyGrd.addColorStop(0, pal.sky);
+        skyGrd.addColorStop(1, "#d4f1f9");
+        ctx.fillStyle = skyGrd;
+        ctx.fillRect(0, 0, W, imgH * 0.6);
 
-      // Sol
-      ctx.fillStyle = "rgba(255,253,200,0.9)";
-      ctx.beginPath();
-      ctx.arc(W * 0.74, imgH * 0.16, 60, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Nuvens
-      ctx.fillStyle = "rgba(255,255,255,0.6)";
-      [
-        [0.08, 0.18, 70, 28],
-        [0.28, 0.13, 90, 34],
-        [0.48, 0.17, 75, 28],
-        [0.62, 0.11, 80, 30],
-      ].forEach(([x, y, rx, ry]) => {
+        ctx.fillStyle = "rgba(255,253,200,0.9)";
         ctx.beginPath();
-        ctx.ellipse(W * x, imgH * y, rx, ry, 0, 0, Math.PI * 2);
+        ctx.arc(W * 0.74, imgH * 0.16, 60, 0, Math.PI * 2);
         ctx.fill();
-      });
 
-      // Água
-      const waterGrd = ctx.createLinearGradient(0, imgH * 0.6, 0, imgH * 0.82);
-      waterGrd.addColorStop(0, pal.water);
-      waterGrd.addColorStop(1, "#0d5a70");
-      ctx.fillStyle = waterGrd;
-      ctx.fillRect(0, imgH * 0.6, W, imgH * 0.22);
+        const waterGrd = ctx.createLinearGradient(0, imgH * 0.6, 0, imgH * 0.82);
+        waterGrd.addColorStop(0, pal.water);
+        waterGrd.addColorStop(1, "#0d5a70");
+        ctx.fillStyle = waterGrd;
+        ctx.fillRect(0, imgH * 0.6, W, imgH * 0.22);
 
-      // Ondas
-      ctx.strokeStyle = "rgba(255,255,255,0.25)";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(0, imgH * 0.6);
-      for (let x = 0; x <= W; x += 10) ctx.lineTo(x, imgH * 0.6 + 6 * Math.sin((x / 80) * Math.PI));
-      ctx.stroke();
+        ctx.fillStyle = pal.sand;
+        ctx.fillRect(0, imgH * 0.82, W, imgH * 0.18);
 
-      // Areia
-      ctx.fillStyle = pal.sand;
-      ctx.fillRect(0, imgH * 0.82, W, imgH * 0.18);
+        drawPalm(ctx, W * 0.14, imgH * 0.2, imgH * 0.34, pal.palm);
+        drawPalm(ctx, W * 0.72, imgH * 0.2, imgH * 0.26, pal.palm);
+      }
 
-      // Palmeiras
-      drawPalm(ctx, W * 0.14, imgH * 0.2, imgH * 0.34, pal.palm);
-      drawPalm(ctx, W * 0.72, imgH * 0.2, imgH * 0.26, pal.palm);
 
-      // Overlay gradiente
       const ovGrd = ctx.createLinearGradient(0, 0, 0, imgH);
       ovGrd.addColorStop(0, "rgba(0,0,0,0)");
       ovGrd.addColorStop(0.65, "rgba(0,0,0,0)");
@@ -361,36 +346,48 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
               overflow: "hidden",
             }}
           >
-            {/* Imagem ilustrada do destino */}
+            {/* Imagem do destino */}
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "42%" }}>
-              {/* Céu */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: `linear-gradient(180deg, ${pal.sky} 0%, #d4f1f9 55%, ${pal.water} 55%, #0d5a70 78%, ${pal.sand} 78%, ${pal.sand} 100%)`,
-                }}
-              />
-              {/* Sol */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: "10%",
-                  right: "28%",
-                  width: 80,
-                  height: 80,
-                  borderRadius: "50%",
-                  background: "rgba(255,253,200,0.9)",
-                }}
-              />
+              {bgLoaded ? (
+                <img
+                  src={getUnsplashSearchUrl(destCtx.imageKeyword, 1080, 600)}
+                  alt={data.destino}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  crossOrigin="anonymous"
+                />
+              ) : (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: `linear-gradient(180deg, ${pal.sky} 0%, #d4f1f9 55%, ${pal.water} 55%, #0d5a70 78%, ${pal.sand} 78%, ${pal.sand} 100%)`,
+                  }}
+                />
+              )}
               {/* Overlay gradiente bottom */}
               <div
                 style={{
                   position: "absolute",
                   inset: 0,
-                  background: "linear-gradient(180deg, transparent 60%, rgba(13,27,42,0.7) 100%)",
+                  background: "linear-gradient(180deg, rgba(0,0,0,0.1) 0%, transparent 30%, rgba(13,27,42,0.8) 100%)",
                 }}
               />
+              {/* Destination description badge */}
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 20,
+                  left: 40,
+                  right: 200,
+                  color: "rgba(255,255,255,0.85)",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  lineHeight: 1.4,
+                  textShadow: "0 1px 3px rgba(0,0,0,0.5)",
+                }}
+              >
+                {destCtx.emoji} {destCtx.description}
+              </div>
             </div>
 
             {/* Badge desconto */}
