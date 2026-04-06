@@ -89,46 +89,8 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
         drawPalm(ctx, W * 0.14, imgH * 0.2, imgH * 0.34, pal.palm);
         drawPalm(ctx, W * 0.72, imgH * 0.2, imgH * 0.26, pal.palm);
       }
-      ctx.arc(W * 0.74, imgH * 0.16, 60, 0, Math.PI * 2);
-      ctx.fill();
 
-      // Nuvens
-      ctx.fillStyle = "rgba(255,255,255,0.6)";
-      [
-        [0.08, 0.18, 70, 28],
-        [0.28, 0.13, 90, 34],
-        [0.48, 0.17, 75, 28],
-        [0.62, 0.11, 80, 30],
-      ].forEach(([x, y, rx, ry]) => {
-        ctx.beginPath();
-        ctx.ellipse(W * x, imgH * y, rx, ry, 0, 0, Math.PI * 2);
-        ctx.fill();
-      });
 
-      // Água
-      const waterGrd = ctx.createLinearGradient(0, imgH * 0.6, 0, imgH * 0.82);
-      waterGrd.addColorStop(0, pal.water);
-      waterGrd.addColorStop(1, "#0d5a70");
-      ctx.fillStyle = waterGrd;
-      ctx.fillRect(0, imgH * 0.6, W, imgH * 0.22);
-
-      // Ondas
-      ctx.strokeStyle = "rgba(255,255,255,0.25)";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(0, imgH * 0.6);
-      for (let x = 0; x <= W; x += 10) ctx.lineTo(x, imgH * 0.6 + 6 * Math.sin((x / 80) * Math.PI));
-      ctx.stroke();
-
-      // Areia
-      ctx.fillStyle = pal.sand;
-      ctx.fillRect(0, imgH * 0.82, W, imgH * 0.18);
-
-      // Palmeiras
-      drawPalm(ctx, W * 0.14, imgH * 0.2, imgH * 0.34, pal.palm);
-      drawPalm(ctx, W * 0.72, imgH * 0.2, imgH * 0.26, pal.palm);
-
-      // Overlay gradiente
       const ovGrd = ctx.createLinearGradient(0, 0, 0, imgH);
       ovGrd.addColorStop(0, "rgba(0,0,0,0)");
       ovGrd.addColorStop(0.65, "rgba(0,0,0,0)");
