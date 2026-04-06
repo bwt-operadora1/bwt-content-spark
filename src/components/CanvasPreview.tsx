@@ -244,16 +244,20 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
               </div>
             )}
 
-            {/* Footer */}
+            {/* Footer with BWT Logo */}
             <div style={{
               position: "absolute",
-              bottom: 60,
+              bottom: 40,
               left: 0,
               right: 0,
-              textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 8,
             }}>
-              <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 16, fontWeight: 600, letterSpacing: 3, textTransform: "uppercase" }}>
-                UM PRODUTO BWT OPERADORA
+              <img src={bwtLogo} alt="BWT Operadora" style={{ height: 50, objectFit: "contain" }} />
+              <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase" }}>
+                OPERADORA DE TURISMO
               </p>
             </div>
 
