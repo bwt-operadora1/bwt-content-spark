@@ -1,4 +1,4 @@
-import { FileText, Copy, Check, Sparkles, MessageCircle, Instagram } from "lucide-react";
+import { FileText, Copy, Check, MessageCircle, Instagram, Mail } from "lucide-react";
 import { useState, useMemo } from "react";
 import { TravelData } from "@/types/travel";
 import { Button } from "@/components/ui/button";
@@ -16,88 +16,114 @@ const ScriptGenerator = ({ data }: ScriptGeneratorProps) => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const scenes = useMemo(
-    () => [
-      {
-        cena: 1,
-        duracao: "0–3s",
-        tipo: "Hook",
-        texto: `Você já imaginou acordar com essa vista em ${data.destino}? 🌊☀️`,
-      },
-      {
-        cena: 2,
-        duracao: "3–7s",
-        tipo: "Produto",
-        texto: `${data.hotel} — ${data.duracao} de puro luxo com ${data.regime}`,
-      },
-      {
-        cena: 3,
-        duracao: "7–11s",
-        tipo: "Oferta",
-        texto: `A partir de ${data.parcelas}x R$ ${data.precoParcela?.replace("R$ ", "")} por pessoa${data.desconto ? ` · ${data.desconto}% OFF` : ""}`,
-      },
-      {
-        cena: 4,
-        duracao: "11–14s",
-        tipo: "Inclui",
-        texto: `Aéreo + Hotel + Transfer + Seguro Viagem — tudo incluso ✅`,
-      },
-      { cena: 5, duracao: "14–15s", tipo: "CTA", texto: `Chama a BWT agora e garante sua vaga! 👇` },
-    ],
-    [data],
-  );
+  // Script de Reels: usa conteúdo do Gemini ou fallback template
+  const scenes = useMemo(() => {
+    if (data.marketing?.reelsScript?.length) {
+      return data.marketing.reelsScript;
+    }
+    // Fallback template
+    return [
+      { cena: 1, duracao: "0–3s", tipo: "Hook",    texto: `Você já imaginou acordar com essa vista em ${data.destino}? 🌊☀️` },
+      { cena: 2, duracao: "3–7s", tipo: "Produto",  texto: `${data.hotel} — ${data.duracao} de puro luxo com ${data.regime}` },
+      { cena: 3, duracao: "7–11s", tipo: "Oferta",  texto: `A partir de ${data.parcelas}x R$ ${data.precoParcela?.replace("R$ ", "")} por pessoa${data.desconto ? ` · ${data.desconto}% OFF` : ""}` },
+      { cena: 4, duracao: "11–14s", tipo: "Inclui", texto: (data.inclui ?? []).slice(0, 3).join(" · ") || "Aéreo + Hotel + Transfer — tudo incluso ✅" },
+      { cena: 5, duracao: "14–15s", tipo: "CTA",    texto: `Chama a ${data.agencia || "agência"} agora e garante sua vaga! 👇` },
+    ];
+  }, [data]);
 
-  const captionInstagram = useMemo(
-    () => `✈️ ${data.destino} te espera! 🌴
+  // Caption Instagram
+  const captionInstagram = useMemo(() => {
+    if (data.marketing?.captionInstagram) return data.marketing.captionInstagram;
+    // Fallback
+    return `✈️ ${data.destino} te espera! 🌴
 
 🏨 ${data.hotel}
 🌙 ${data.duracao} | ${data.regime}
 ${data.desconto ? `🔥 Até ${data.desconto}% OFF\n` : ""}💰 A partir de ${data.parcelas}x R$ ${data.precoParcela?.replace("R$ ", "")}
-${data.precoAVista ? `💳 Ou ${data.precoAVista}` : ""}
+${data.precoAVista ? `💳 Ou ${data.precoAVista} à vista` : ""}
 ${data.dataInicio && data.dataFim ? `📅 ${data.dataInicio} a ${data.dataFim}` : ""}
 ${data.companhiaAerea ? `✈️ ${data.companhiaAerea}` : ""}
 
 ✅ O que inclui:
 ${(data.inclui || []).map((i) => `  • ${i}`).join("\n")}
 
-👉 Solicite seu orçamento com a BWT Operadora!
-📞 (41) 3888-3499 | bwtoperadora.com.br
+👉 Entre em contato com a ${data.agencia || "sua agência"} para solicitar seu orçamento!
 
-#BWT #BWTOperadora #${data.destino.replace(/\s/g, "")} #Viagem #Turismo #${data.campanha?.replace(/\s/g, "") || "OperacaoCaribe"} #ViagemDeSonho #TudoIncluido #Pacote${data.desconto ? " #Promocao" : ""}`,
-    [data],
-  );
+#BWT #BWTOperadora #${data.destino.replace(/\s/g, "")} #Viagem #Turismo #ViagemDeSonho #PacoteDeTurismo #Promocao`;
+  }, [data]);
 
-  const captionWhatsApp = useMemo(
-    () => `🌴 *${data.destino} — Oferta Especial BWT*
+  // Mensagem WhatsApp
+  const captionWhatsApp = useMemo(() => {
+    if (data.marketing?.captionWhatsApp) return data.marketing.captionWhatsApp;
+    // Fallback
+    return `🌴 *${data.destino} — Oferta Especial*
 
 🏨 *Hotel:* ${data.hotel}
 🌙 *Duração:* ${data.duracao}
 🍽️ *Regime:* ${data.regime}
-${data.desconto ? `🔥 *Desconto:* Até ${data.desconto}% OFF\n` : ""}
-💰 *A partir de:* ${data.parcelas}x R$ ${data.precoParcela?.replace("R$ ", "")}
-${data.precoAVista ? `💳 *À vista:* ${data.precoAVista}` : ""}
+${data.bagagem ? `🧳 *Bagagem:* ${data.bagagem}\n` : ""}${data.desconto ? `🔥 *Desconto:* Até ${data.desconto}% OFF\n` : ""}
+💰 *A partir de:* ${data.parcelas}x R$ ${data.precoParcela?.replace("R$ ", "")} /pessoa
+${data.precoAVista ? `💳 *À vista:* ${data.precoAVista} /pessoa` : ""}
 ${data.dataInicio && data.dataFim ? `📅 *Datas:* ${data.dataInicio} a ${data.dataFim}` : ""}
 ${data.companhiaAerea ? `✈️ *Cia. Aérea:* ${data.companhiaAerea}` : ""}
 
 ✅ *Inclui:*
 ${(data.inclui || []).map((i) => `  • ${i}`).join("\n")}
 
-📲 Acesse: bwtoperadora.com.br
-📞 (41) 3888-3499
+_Valores por pessoa em apto duplo. Sujeito a disponibilidade._`;
+  }, [data]);
 
-_Valores por pessoa em apto duplo. Sujeito a disponibilidade._`,
-    [data],
-  );
+  // Script de Email
+  const emailScript = useMemo(() => {
+    if (data.marketing?.emailScript) return data.marketing.emailScript;
+    // Fallback
+    const agencia = data.agencia || "nossa agência";
+    return `Assunto: ${data.destino} | ${data.duracao} a partir de ${data.parcelas}x R$ ${data.precoParcela?.replace("R$ ", "")} por pessoa
 
-  const CopyButton = ({ text, id, label }: { text: string; id: string; label?: string }) => (
+Olá!
+
+Temos uma oferta especial para ${data.destino} que você não pode perder.
+
+📍 DESTINO: ${data.destino}
+🏨 HOTEL: ${data.hotel}
+${data.quartoTipo ? `🛏️ QUARTO: ${data.quartoTipo}\n` : ""}🍽️ REGIME: ${data.regime}
+🌙 DURAÇÃO: ${data.duracao}
+${data.dataInicio && data.dataFim ? `📅 PERÍODO: ${data.dataInicio} a ${data.dataFim}\n` : ""}${data.companhiaAerea ? `✈️ VOO: ${data.companhiaAerea}\n` : ""}${data.bagagem ? `🧳 BAGAGEM: ${data.bagagem}\n` : ""}
+O QUE ESTÁ INCLUSO:
+${(data.inclui || []).map((i) => `• ${i}`).join("\n")}
+
+💰 INVESTIMENTO:
+• ${data.parcelas}x R$ ${data.precoParcela?.replace("R$ ", "")} por pessoa (cartão)
+${data.precoAVista ? `• R$ ${data.precoAVista?.replace("R$ ", "")} por pessoa à vista (${data.desconto || 5}% OFF no PIX)\n` : ""}
+Entre em contato para garantir sua vaga!
+
+Atenciosamente,
+${agencia}`;
+  }, [data]);
+
+  const CopyButton = ({ text, id }: { text: string; id: string }) => (
     <Button onClick={() => copyText(text, id)} size="sm" variant="outline" className="gap-2 text-xs">
-      {copiedId === id ? <Check className="w-3 h-3" style={{ color: "#00b4c8" }} /> : <Copy className="w-3 h-3" />}
-      {copiedId === id ? "Copiado!" : label || "Copiar"}
+      {copiedId === id
+        ? <Check className="w-3 h-3" style={{ color: "#00b4c8" }} />
+        : <Copy className="w-3 h-3" />}
+      {copiedId === id ? "Copiado!" : "Copiar"}
     </Button>
   );
 
+  const hasAI = !!data.marketing;
+
   return (
     <div className="space-y-6">
+      {hasAI && (
+        <div
+          className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
+          style={{ background: "rgba(0,180,200,0.08)", border: "0.5px solid rgba(0,180,200,0.3)", color: "#00b4c8" }}
+        >
+          ✨ Conteúdo gerado com Gemini AI — personalizado para {data.destino}
+          {data.agencia ? ` · Agência: ${data.agencia}` : ""}
+        </div>
+      )}
+
       {/* Script Reels */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
@@ -115,9 +141,7 @@ _Valores por pessoa em apto duplo. Sujeito a disponibilidade._`,
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-semibold" style={{ color: "#00b4c8" }}>
-                    {scene.tipo}
-                  </span>
+                  <span className="text-xs font-semibold" style={{ color: "#00b4c8" }}>{scene.tipo}</span>
                   <span className="text-xs text-muted-foreground">{scene.duracao}</span>
                 </div>
                 <p className="text-sm text-foreground font-medium">{scene.texto}</p>
@@ -141,7 +165,7 @@ _Valores por pessoa em apto duplo. Sujeito a disponibilidade._`,
         </div>
       </div>
 
-      {/* Copy WhatsApp */}
+      {/* Mensagem WhatsApp */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -152,6 +176,20 @@ _Valores por pessoa em apto duplo. Sujeito a disponibilidade._`,
         </div>
         <div className="glass-card rounded-xl p-4">
           <p className="text-sm text-foreground whitespace-pre-line leading-relaxed font-mono">{captionWhatsApp}</p>
+        </div>
+      </div>
+
+      {/* Script de Email */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Mail className="w-5 h-5" style={{ color: "#00b4c8" }} />
+            <h3 className="text-lg font-display font-semibold">E-mail de Vendas</h3>
+          </div>
+          <CopyButton text={emailScript} id="email" />
+        </div>
+        <div className="glass-card rounded-xl p-4">
+          <p className="text-sm text-foreground whitespace-pre-line leading-relaxed font-mono">{emailScript}</p>
         </div>
       </div>
     </div>

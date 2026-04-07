@@ -1,7 +1,8 @@
-import { Upload, Sparkles, AlertCircle, FileText } from "lucide-react";
+import { Upload, Sparkles, AlertCircle } from "lucide-react";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { TravelData, SAMPLE_DATA } from "@/types/travel";
-import { extractTextFromPdf, parseTravelData } from "@/lib/pdfParser";
+import { extractTextFromPdf } from "@/lib/pdfParser";
+import { parseWithGemini } from "@/lib/geminiParser";
 
 interface PdfUploadProps {
   onDataExtracted: (data: TravelData) => void;
@@ -46,7 +47,7 @@ const PdfUpload = ({ onDataExtracted }: PdfUploadProps) => {
         return;
       }
 
-      const data = parseTravelData(text);
+      const data = await parseWithGemini(text);
       localStorage.setItem("bwt-session", JSON.stringify(data));
       onDataExtracted(data);
     } catch (err) {
@@ -146,10 +147,10 @@ const PdfUpload = ({ onDataExtracted }: PdfUploadProps) => {
             />
             <div>
               <p className="font-semibold text-sm" style={{ color: "#fff" }}>
-                {fileName ? `Lendo ${fileName}` : "Extraindo dados..."}
+                {fileName ? `Analisando ${fileName}` : "Analisando com IA..."}
               </p>
               <p className="text-xs mt-1" style={{ color: "rgba(200,216,232,0.5)" }}>
-                Analisando orçamento Infotera
+                Gemini interpretando orçamento e gerando conteúdo
               </p>
             </div>
           </div>

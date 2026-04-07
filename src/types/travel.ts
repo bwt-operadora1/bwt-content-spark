@@ -1,3 +1,17 @@
+export interface ReelsScene {
+  cena: number;
+  tipo: string;
+  duracao: string;
+  texto: string;
+}
+
+export interface MarketingContent {
+  captionInstagram: string;
+  captionWhatsApp: string;
+  emailScript: string;
+  reelsScript: ReelsScene[];
+}
+
 export interface TravelData {
   destino: string;
   hotel: string;
@@ -16,9 +30,13 @@ export interface TravelData {
   dataInicio?: string;
   dataFim?: string;
   companhiaAerea?: string;
+  bagagem?: string;
+  origemVoo?: string;
+  agencia?: string;
   inclui?: string[];
   tipoProduto?: string;
   campanha?: string;
+  marketing?: MarketingContent;
 }
 
 export interface VideoScene {

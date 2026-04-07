@@ -348,6 +348,13 @@ function extractField(text: string, patterns: RegExp[]): string | undefined {
 
 function extractDestinationFromAirport(text: string): string | undefined {
   const airportMap: Record<string, string> = {
+    // Brasil
+    FOR: "Fortaleza", NAT: "Natal", SSA: "Salvador", REC: "Recife",
+    MCZ: "Maceió", GIG: "Rio de Janeiro", GRU: "São Paulo", CGH: "São Paulo",
+    FLN: "Florianópolis", IGU: "Foz do Iguaçu", PVH: "Porto Velho",
+    BSB: "Brasília", MAO: "Manaus", BEL: "Belém", CWB: "Curitiba",
+    POA: "Porto Alegre", VCP: "Campinas", JPA: "João Pessoa",
+    // Internacional
     PUJ: "Punta Cana", CUN: "Cancún", MCO: "Orlando", MIA: "Miami",
     LIS: "Lisboa", CDG: "Paris", FCO: "Roma", DXB: "Dubai",
     MLE: "Maldivas", SCL: "Santiago", EZE: "Buenos Aires",
