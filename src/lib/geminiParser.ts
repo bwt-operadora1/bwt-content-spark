@@ -48,7 +48,9 @@ REGRAS OBRIGATÓRIAS:
 5. O conteúdo de marketing deve referenciar a AGÊNCIA REVENDEDORA como contato, não a BWT diretamente
 6. Contextualize o destino com atrações reais, clima e experiências únicas daquele lugar
 7. Para destinos nacionais brasileiros, adapte o tom (praias nordestinas, gastronomia local, etc.)
-8. Retorne APENAS o JSON puro, sem nenhum texto antes ou depois`;
+8. O "destino" é SEMPRE a cidade de CHEGADA/HOSPEDAGEM (onde fica o hotel), NUNCA a cidade de origem/embarque do passageiro. Ex: se o voo sai de Porto Velho (PVH) e chega em Fortaleza (FOR), o destino é "Fortaleza".
+9. O nome do hotel deve ser extraído SEM símbolos de estrelas (☆ ★) ou caracteres especiais
+10. Retorne APENAS o JSON puro, sem nenhum texto antes ou depois`;
 
 export async function parseWithGemini(
   pdfText: string,
@@ -103,7 +105,7 @@ export async function parseWithGemini(
 
     return {
       destino: String(td.destino ?? "Destino"),
-      hotel: String(td.hotel ?? "Hotel"),
+      hotel: stripStars(String(td.hotel ?? "Hotel")),
       quartoTipo: td.quartoTipo ? String(td.quartoTipo) : undefined,
       regime: String(td.regime ?? "Consultar"),
       precoTotal: String(td.precoTotal ?? "R$ 0,00"),
@@ -133,6 +135,13 @@ export async function parseWithGemini(
 }
 
 // ─── Utilitários ──────────────────────────────────────────────────────────────
+
+function stripStars(name: string): string {
+  return name
+    .replace(/[\u2605\u2606\u2B50\u26AA\u26AB\u25A0\u25A1\u2B1B\u2B1C]+/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
 
 function parseMoneyToNumber(str: string): number {
   const num = parseFloat(str.replace(/[^\d,]/g, "").replace(",", "."));

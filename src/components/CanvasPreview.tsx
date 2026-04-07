@@ -256,15 +256,16 @@ function drawStory(canvas: HTMLCanvasElement, data: TravelData, W: number, H: nu
     ctx.fillStyle = "#8aaabb";
     ctx.font = `${Math.round(H * 0.013)}px sans-serif`;
     ctx.fillText("A PARTIR DE", px2, py2);
-    py2 += Math.round(H * 0.018);
+    // Gap must be >= font size of the parcelas number (0.048H) to avoid overlap
+    py2 += Math.round(H * 0.054);
     ctx.fillStyle = "#00d4e8";
     ctx.font = `900 ${Math.round(H * 0.048)}px sans-serif`;
     ctx.fillText(`${data.parcelas}x`, px2, py2);
-    py2 += Math.round(H * 0.008);
+    py2 += Math.round(H * 0.054);
     ctx.fillStyle = "#fff";
     ctx.font = `900 ${Math.round(H * 0.056)}px sans-serif`;
-    ctx.fillText(`R$ ${data.precoParcela.replace("R$ ", "")}`, px2, py2 + Math.round(H * 0.048));
-    py2 += Math.round(H * 0.062);
+    ctx.fillText(`R$ ${data.precoParcela.replace("R$ ", "")}`, px2, py2);
+    py2 += Math.round(H * 0.064);
     if (data.precoAVista) {
       ctx.fillStyle = "#fff";
       ctx.font = `600 ${Math.round(H * 0.014)}px sans-serif`;
@@ -458,16 +459,17 @@ function drawFeed(canvas: HTMLCanvasElement, data: TravelData, W: number, H: num
   ctx.fillStyle = "#8aaabb";
   ctx.font = `${Math.round(H * 0.014)}px sans-serif`;
   ctx.fillText("A PARTIR DE", px2, py2);
-  py2 += Math.round(H * 0.022);
+  py2 += Math.round(H * 0.046); // gap >= font size of parcelas (0.038H)
 
   ctx.fillStyle = "#00d4e8";
   ctx.font = `900 ${Math.round(H * 0.038)}px sans-serif`;
-  ctx.fillText(`${data.parcelas}x`, px2, py2 + Math.round(H * 0.032));
+  ctx.fillText(`${data.parcelas}x`, px2, py2);
+  py2 += Math.round(H * 0.054);
 
   ctx.fillStyle = "#fff";
   ctx.font = `900 ${Math.round(H * 0.05)}px sans-serif`;
-  ctx.fillText(`R$ ${data.precoParcela.replace("R$ ", "")}`, px2, py2 + Math.round(H * 0.08));
-  py2 += Math.round(H * 0.09);
+  ctx.fillText(`R$ ${data.precoParcela.replace("R$ ", "")}`, px2, py2);
+  py2 += Math.round(H * 0.06);
 
   if (data.precoAVista) {
     ctx.fillStyle = "#c8d8e8";

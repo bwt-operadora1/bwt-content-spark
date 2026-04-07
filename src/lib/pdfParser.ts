@@ -64,8 +64,10 @@ export function parseTravelData(text: string): TravelData {
     ? formatMoney(totalNum / numAdultos)
     : precoTotal;
 
-  // ── Parcelas ──
-  const parcelasMatch = clean.match(/(?:em\s+até\s+)?(\d{1,2})\s*[xX]\s*(?:iguais|parcelas|de)?/i);
+  // ── Parcelas — must match payment terms, NOT baggage "1x Item Pessoal" ──
+  const parcelasMatch =
+    clean.match(/em\s+até\s+(\d{1,2})\s*[xX]/i) ||
+    clean.match(/(\d{1,2})\s*[xX]\s+(?:iguais|parcelas)/i);
   const parcelas = parcelasMatch ? parseInt(parcelasMatch[1]) : 10;
   const precoParcela = totalNum > 0
     ? formatMoney(totalNum / numAdultos / parcelas)
@@ -143,16 +145,28 @@ function extractDestino(clean: string, lines: string[]): string {
   const opMatch = clean.match(/Operação\s+[\w\s]+[-–]\s*([A-ZÀ-Úa-zà-ú][\w\s]*?)(?:\s+Nº|\s*$)/i);
   if (opMatch) return normalizeDestino(opMatch[1].trim());
 
-  // Pattern 2: Known destination names
+  // Pattern 2: Known destination names — compound/specific names MUST come before
+  // short/ambiguous ones (e.g. "Porto Velho" before "Porto", "Foz do Iguaçu" before "Foz")
   const knownDests = [
-    "Cancún", "Cancun", "Punta Cana", "Orlando", "Miami", "Lisboa", "Porto",
-    "Paris", "Roma", "Maldivas", "Dubai", "Santiago", "Buenos Aires",
-    "Cartagena", "Bariloche", "Cusco", "Riviera Maya", "Playa del Carmen",
-    "Aruba", "Curaçao", "Curacao", "Costa Mujeres", "Tulum",
-    "New York", "Las Vegas", "Los Angeles", "Londres", "Madrid", "Barcelona",
-    "Amsterdã", "Bangkok", "Tóquio", "Bali", "Fernando de Noronha",
-    "Gramado", "Florianópolis", "Foz do Iguaçu", "Salvador", "Natal",
-    "Fortaleza", "Recife", "Maceió", "Porto Seguro", "Jericoacoara",
+    // Brasil — specific first
+    "Fortaleza", "Jericoacoara", "Fernando de Noronha",
+    "Porto Seguro", "Porto Velho", "Porto Alegre",
+    "Foz do Iguaçu", "Foz do Iguacu",
+    "Rio de Janeiro", "São Paulo",
+    "Florianópolis", "Florianopolis", "Balneário Camboriú",
+    "Salvador", "Recife", "Natal", "Maceió", "Maceio",
+    "Porto de Galinhas", "Morro de São Paulo",
+    "Gramado", "Canela", "Bonito",
+    "Manaus", "Belém", "Brasília", "Curitiba",
+    // Internacional — specific first
+    "Punta Cana", "Riviera Maya", "Playa del Carmen", "Costa Mujeres",
+    "Buenos Aires", "New York", "Los Angeles", "Las Vegas",
+    "Cancún", "Cancun", "Orlando", "Miami",
+    "Lisboa", "Porto",  // "Porto" after "Porto Velho" / "Porto Seguro"
+    "Paris", "Roma", "Londres", "Madrid", "Barcelona", "Amsterdã",
+    "Maldivas", "Dubai", "Bangkok", "Tóquio", "Bali",
+    "Santiago", "Cartagena", "Bariloche", "Cusco", "Tulum",
+    "Aruba", "Curaçao", "Curacao",
   ];
   for (const dest of knownDests) {
     if (clean.includes(dest)) return normalizeDestino(dest);
@@ -177,7 +191,7 @@ function extractHotel(clean: string, lines: string[]): string {
       for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
         const line = lines[j];
         if (line.length > 5 && !/check|noites|hóspedes|adultos|\|/i.test(line)) {
-          return line.replace(/[,;.]+$/, "").trim();
+          return cleanHotelName(line);
         }
       }
     }
@@ -187,15 +201,15 @@ function extractHotel(clean: string, lines: string[]): string {
   const brandMatch = clean.match(
     /((?:Grand\s+)?(?:Palladium|Impressive|Iberostar|Barceló|RIU|Hard Rock|Secrets|Dreams|Breathless|Royalton|Sandals|Hyatt|Hilton|Marriott|Sheraton|Meliá|Occidental|Bahia Principe)[\w\s]+?)(?:\s*[-–,;.]|\s+(?:Check|Suite|Tudo|All|Quarto|\d))/i
   );
-  if (brandMatch) return brandMatch[1].trim();
+  if (brandMatch) return cleanHotelName(brandMatch[1]);
 
   // Pattern 3: "hotel: X"
   const hotelMatch = clean.match(/hotel[:\s]+([^\n,;.]+)/i);
-  if (hotelMatch) return hotelMatch[1].trim();
+  if (hotelMatch) return cleanHotelName(hotelMatch[1]);
 
   // Pattern 4: "Resort" or "Hotel" in name
   const resortMatch = clean.match(/([\w\s]+(?:Resort|Hotel|Palace|Suites|Lodge|Beach|Bay|Club|Grand|Plaza|Royal)[\w\s]*?)(?:\s*[-–,;.]|\s+(?:Check|Suite|Tudo|All|\d))/i);
-  if (resortMatch) return resortMatch[1].trim();
+  if (resortMatch) return cleanHotelName(resortMatch[1]);
 
   return "Hotel";
 }
@@ -337,6 +351,15 @@ function extractInclui(lines: string[], hotel: string, cia: string, duracao: str
 }
 
 // ─── Utilities ───
+
+/** Strips star/rating symbols and excess whitespace from hotel names */
+function cleanHotelName(name: string): string {
+  return name
+    .replace(/[\u2605\u2606\u2B50\u26AA\u26AB\u25A0\u25A1\u2B1B\u2B1C]+/g, "") // ★☆⭐⬜□■ etc.
+    .replace(/\s{2,}/g, " ")
+    .replace(/[,;.]+$/, "")
+    .trim();
+}
 
 function extractField(text: string, patterns: RegExp[]): string | undefined {
   for (const pattern of patterns) {
