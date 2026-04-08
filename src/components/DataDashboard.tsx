@@ -10,6 +10,9 @@ import {
   Plane,
   Plus,
   Trash2,
+  Building2,
+  Luggage,
+  Navigation,
 } from "lucide-react";
 import { TravelData } from "@/types/travel";
 import { Input } from "@/components/ui/input";
@@ -26,7 +29,10 @@ const FIELDS = [
   { key: "quartoTipo" as const, label: "Tipo de Quarto", icon: Hotel },
   { key: "duracao" as const, label: "Duração", icon: Moon },
   { key: "regime" as const, label: "Regime", icon: UtensilsCrossed },
+  { key: "agencia" as const, label: "Agência Revendedora", icon: Building2 },
   { key: "companhiaAerea" as const, label: "Cia. Aérea", icon: Plane },
+  { key: "origemVoo" as const, label: "Origem do Voo", icon: Navigation },
+  { key: "bagagem" as const, label: "Bagagem", icon: Luggage },
   { key: "tipoProduto" as const, label: "Tipo", icon: Plane },
   { key: "campanha" as const, label: "Campanha", icon: Calendar },
   { key: "desconto" as const, label: "Desconto %", icon: Percent },

@@ -7,7 +7,8 @@ import ScriptGenerator from "@/components/ScriptGenerator";
 import ProductPage from "@/components/ProductPage";
 import DataDashboard from "@/components/DataDashboard";
 import { TravelData } from "@/types/travel";
-import { Image, Video, FileText, Globe } from "lucide-react";
+import { Image, Video, FileText, Globe, Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const [travelData, setTravelData] = useState<TravelData | null>(null);
@@ -44,14 +45,20 @@ const Index = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-start gap-4">
               <DataDashboard data={travelData} onChange={setTravelData} />
-              <button
-                onClick={() => setTravelData(null)}
-                className="text-sm text-muted-foreground hover:text-foreground underline"
+              <Button
+                onClick={() => {
+                  localStorage.removeItem("bwt-session");
+                  setTravelData(null);
+                }}
+                size="sm"
+                variant="outline"
+                className="shrink-0 gap-2"
               >
+                <Upload className="w-4 h-4" />
                 Novo Upload
-              </button>
+              </Button>
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

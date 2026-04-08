@@ -2,57 +2,64 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { TravelData, MarketingContent } from "@/types/travel";
 import { parseTravelData } from "./pdfParser";
 
-const GEMINI_PROMPT = `Você é um especialista em turismo e marketing digital, especializado em analisar orçamentos do sistema Infotera (BWT Operadora, Brasil) e criar conteúdo de marketing personalizado para agências de viagens revendedoras.
+// ─── Prompt ──────────────────────────────────────────────────────────────────
+//
+// Formato imperativo — diz ao Gemini para EXTRAIR valores reais, não gerar descrições.
 
-Analise o texto do orçamento fornecido e retorne EXCLUSIVAMENTE um JSON válido (sem markdown, sem bloco de código, sem explicações) com exatamente esta estrutura:
+const buildPrompt = (pdfText: string) => `Você é um sistema especializado em extrair dados de orçamentos de viagem do sistema Infotera (BWT Operadora, Brasil) e gerar conteúdo de marketing para agências.
+
+Analise o orçamento abaixo e retorne SOMENTE um JSON válido — sem explicações, sem markdown, sem blocos de código.
+
+ORÇAMENTO:
+---
+${pdfText}
+---
+
+Extraia os valores REAIS do texto acima e preencha este JSON:
 
 {
   "travelData": {
-    "destino": "nome da cidade/destino (ex: Fortaleza, Cancún, Punta Cana)",
-    "hotel": "nome completo do hotel",
-    "quartoTipo": "tipo do quarto exatamente como aparece (ex: Quarto Duplo Standard)",
-    "regime": "All Inclusive | Café da Manhã | Meia Pensão | Pensão Completa | Room Only",
-    "precoTotal": "valor total para todos os passageiros no formato R$ X.XXX,XX",
+    "destino": "nome da cidade de DESTINO (onde o cliente vai ficar hospedado)",
+    "hotel": "nome completo do hotel como aparece no documento",
+    "quartoTipo": "tipo do quarto como aparece no documento, ou null se não houver",
+    "regime": "regime alimentar exato: All Inclusive, Café da Manhã, Meia Pensão, Pensão Completa, ou Room Only",
+    "precoTotal": "valor do campo Total com taxas, formato R$ X.XXX,XX",
     "numAdultos": 2,
     "duracao": "X Noites",
-    "dataInicio": "DD/MM/AAAA",
-    "dataFim": "DD/MM/AAAA",
-    "companhiaAerea": "nome da companhia aérea",
-    "bagagem": "resumo das bagagens (ex: Sem mala despachada — apenas bagagem de mão | 1 mala de 23kg por pessoa)",
-    "origemVoo": "cidade de origem do primeiro voo de ida",
-    "tipoProduto": "Aéreo + Hotel | Aéreo + Hotel + Transfer | Cruzeiro | Hotel | Pacote",
+    "dataInicio": "data de check-in ou embarque no formato DD/MM/AAAA",
+    "dataFim": "data de check-out ou retorno no formato DD/MM/AAAA",
+    "companhiaAerea": "nome da companhia aérea ou null se não houver voo",
+    "bagagem": "resumo da bagagem por adulto (ex: Sem mala despachada — mala de mão inclusa, ou 1 mala de 23kg por pessoa)",
+    "origemVoo": "cidade de origem do primeiro voo de ida, ou null",
+    "tipoProduto": "Aéreo + Hotel + Transfer se tiver traslado, Aéreo + Hotel se não tiver, ou Hotel se for só hospedagem",
     "campanha": null,
-    "agencia": "nome da agência revendedora (quem emitiu o orçamento)",
-    "inclui": ["item incluído 1", "item incluído 2"],
+    "agencia": "nome da agência revendedora que aparece no cabeçalho do documento",
+    "inclui": ["liste aqui cada serviço incluído no pacote separadamente"],
     "desconto": "5"
   },
   "marketing": {
-    "captionInstagram": "legenda criativa para post no feed do Instagram — mencione atrações únicas do destino, use emojis relevantes, inclua hashtags no final (mínimo 8 hashtags sobre o destino, viagem e turismo). Preço POR PESSOA.",
-    "captionWhatsApp": "mensagem de vendas para WhatsApp usando *negrito* para títulos e valores. Preço POR PESSOA. Tom direto e persuasivo.",
-    "emailScript": "e-mail de vendas completo com assunto na primeira linha (formato 'Assunto: ...'), saudação, apresentação do produto, detalhes do pacote, preço por pessoa, forma de pagamento e assinatura. Sem HTML.",
+    "captionInstagram": "escreva uma legenda criativa para Instagram sobre este pacote para ${data => data.destino}. Mencione o hotel, duração, regime, preço POR PESSOA (total dividido pelo número de adultos) parcelado em 10x, desconto de 5% PIX. Use emojis e inclua hashtags relevantes ao destino no final.",
+    "captionWhatsApp": "escreva uma mensagem de vendas para WhatsApp sobre este pacote. Use *negrito* para destaques. Preço POR PESSOA. Mencione a agência como contato.",
+    "emailScript": "escreva um e-mail de vendas completo. Primeira linha: Assunto: [assunto aqui]. Depois o corpo do e-mail com apresentação, detalhes do pacote, preço POR PESSOA, formas de pagamento e assinatura da agência.",
     "reelsScript": [
-      { "cena": 1, "tipo": "Hook", "duracao": "0–3s", "texto": "frase de impacto que desperta curiosidade sobre o destino" },
-      { "cena": 2, "tipo": "Produto", "duracao": "3–7s", "texto": "apresenta o hotel, duração e regime alimentar" },
-      { "cena": 3, "tipo": "Oferta", "duracao": "7–11s", "texto": "preço por pessoa parcelado e desconto PIX" },
-      { "cena": 4, "tipo": "Inclui", "duracao": "11–14s", "texto": "itens incluídos no pacote de forma resumida" },
-      { "cena": 5, "tipo": "CTA", "duracao": "14–15s", "texto": "chamada para ação — cliente deve contatar a agência revendedora" }
+      { "cena": 1, "tipo": "Hook", "duracao": "0–3s", "texto": "frase de impacto para abrir o vídeo sobre o destino" },
+      { "cena": 2, "tipo": "Produto", "duracao": "3–7s", "texto": "apresenta hotel, duração e regime" },
+      { "cena": 3, "tipo": "Oferta", "duracao": "7–11s", "texto": "preço por pessoa parcelado e opção PIX" },
+      { "cena": 4, "tipo": "Inclui", "duracao": "11–14s", "texto": "serviços incluídos resumidamente" },
+      { "cena": 5, "tipo": "CTA", "duracao": "14–15s", "texto": "chamada para ação contatando a agência" }
     ]
   }
 }
 
-REGRAS OBRIGATÓRIAS:
-1. O preço nos conteúdos de marketing deve ser SEMPRE POR PESSOA (total ÷ número de adultos)
-2. Parcelas = preço por pessoa ÷ 10
-3. Desconto à vista = 5% sobre o preço por pessoa
-4. Se houver "0x Mala despachada" no orçamento, MENCIONE claramente na bagagem e nos scripts
-5. O conteúdo de marketing deve referenciar a AGÊNCIA REVENDEDORA como contato, não a BWT diretamente
-6. Contextualize o destino com atrações reais, clima e experiências únicas daquele lugar
-7. Para destinos nacionais brasileiros, adapte o tom (praias nordestinas, gastronomia local, etc.)
-8. Retorne APENAS o JSON puro, sem nenhum texto antes ou depois`;
+IMPORTANTE:
+- Preencha os campos com os VALORES REAIS extraídos do texto acima
+- Preço no marketing = total ÷ adultos (por pessoa)
+- Se o documento mostra "0x Mala despachada", a bagagem NÃO inclui mala de porão
+- Retorne APENAS o JSON puro, sem nenhum caractere antes ou depois`;
 
-export async function parseWithGemini(
-  pdfText: string,
-): Promise<TravelData> {
+// ─── Parser ───────────────────────────────────────────────────────────────────
+
+export async function parseWithGemini(pdfText: string): Promise<TravelData> {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
   if (!apiKey) {
@@ -63,20 +70,16 @@ export async function parseWithGemini(
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
-      generationConfig: {
-        temperature: 0.3,
-        responseMimeType: "application/json",
-      },
+      model: "gemini-1.5-flash",
+      generationConfig: { temperature: 0.1 },
     });
 
-    const result = await model.generateContent(
-      `${GEMINI_PROMPT}\n\n--- TEXTO DO ORÇAMENTO INFOTERA ---\n\n${pdfText}`,
-    );
-
+    const result = await model.generateContent(buildPrompt(pdfText));
     const raw = result.response.text().trim();
 
-    // Remove markdown code fences se estiverem presentes
+    console.log("[Gemini] Resposta bruta (primeiros 500 chars):", raw.substring(0, 500));
+
+    // Remove markdown code fences se presentes
     const jsonText = raw
       .replace(/^```(?:json)?\s*/i, "")
       .replace(/\s*```\s*$/, "")
@@ -90,52 +93,65 @@ export async function parseWithGemini(
     const td = parsed.travelData;
     const marketing = parsed.marketing;
 
-    // Calcula os preços derivados a partir do total extraído pelo Gemini
+    console.log("[Gemini] travelData extraído:", td);
+
+    // Calcula preços derivados a partir do total extraído
     const totalNum = parseMoneyToNumber(String(td.precoTotal ?? "0"));
     const numAdultos = Number(td.numAdultos) || 2;
     const parcelas = 10;
-    const descontoNum = 0.05;
 
     const ppRaw = totalNum > 0 ? totalNum / numAdultos : 0;
-    const precoPorPessoa = ppRaw > 0 ? formatMoney(ppRaw) : String(td.precoTotal ?? "Consultar");
+    const precoPorPessoa = ppRaw > 0 ? formatMoney(ppRaw) : "Consultar";
     const precoParcela = ppRaw > 0 ? formatMoney(ppRaw / parcelas) : "Consultar";
-    const precoAVista = ppRaw > 0 ? formatMoney(ppRaw * (1 - descontoNum)) : precoPorPessoa;
+    const precoAVista = ppRaw > 0 ? formatMoney(ppRaw * 0.95) : "Consultar";
+
+    // Garante que destino e hotel são strings reais, não descrições
+    const destino = cleanField(td.destino);
+    const hotel = cleanField(td.hotel);
 
     return {
-      destino: String(td.destino ?? "Destino"),
-      hotel: String(td.hotel ?? "Hotel"),
-      quartoTipo: td.quartoTipo ? String(td.quartoTipo) : undefined,
-      regime: String(td.regime ?? "Consultar"),
-      precoTotal: String(td.precoTotal ?? "R$ 0,00"),
+      destino: destino || "Destino",
+      hotel: hotel || "Hotel",
+      quartoTipo: td.quartoTipo && td.quartoTipo !== "null" ? cleanField(td.quartoTipo) : undefined,
+      regime: cleanField(td.regime) || "Consultar",
+      precoTotal: cleanField(td.precoTotal) || "R$ 0,00",
       numAdultos,
       parcelas,
       precoPorPessoa,
       precoParcela,
       precoAVista,
-      desconto: String(td.desconto ?? "5"),
-      duracao: String(td.duracao ?? "Consultar"),
-      dataInicio: td.dataInicio ? String(td.dataInicio) : undefined,
-      dataFim: td.dataFim ? String(td.dataFim) : undefined,
-      companhiaAerea: td.companhiaAerea ? String(td.companhiaAerea) : undefined,
-      bagagem: td.bagagem ? String(td.bagagem) : undefined,
-      origemVoo: td.origemVoo ? String(td.origemVoo) : undefined,
-      agencia: td.agencia ? String(td.agencia) : undefined,
-      tipoProduto: String(td.tipoProduto ?? "Pacote"),
-      campanha: td.campanha ? String(td.campanha) : undefined,
-      inclui: Array.isArray(td.inclui) ? (td.inclui as string[]) : [],
+      desconto: "5",
+      duracao: cleanField(td.duracao) || "Consultar",
+      dataInicio: td.dataInicio && td.dataInicio !== "null" ? cleanField(td.dataInicio) : undefined,
+      dataFim: td.dataFim && td.dataFim !== "null" ? cleanField(td.dataFim) : undefined,
+      companhiaAerea: td.companhiaAerea && td.companhiaAerea !== "null" ? cleanField(td.companhiaAerea) : undefined,
+      bagagem: td.bagagem && td.bagagem !== "null" ? cleanField(td.bagagem) : undefined,
+      origemVoo: td.origemVoo && td.origemVoo !== "null" ? cleanField(td.origemVoo) : undefined,
+      agencia: td.agencia && td.agencia !== "null" ? cleanField(td.agencia) : undefined,
+      tipoProduto: cleanField(td.tipoProduto) || "Pacote",
+      campanha: td.campanha && td.campanha !== "null" ? cleanField(td.campanha) : undefined,
+      inclui: Array.isArray(td.inclui) ? (td.inclui as string[]).filter(Boolean) : [],
       roteiro: [],
       marketing,
     };
   } catch (err) {
-    console.error("[Gemini] Erro — usando parser local como fallback:", err);
+    console.error("[Gemini] Erro:", err);
+    console.warn("[Gemini] Usando parser local como fallback");
     return parseTravelData(pdfText);
   }
 }
 
 // ─── Utilitários ──────────────────────────────────────────────────────────────
 
+function cleanField(val: unknown): string {
+  if (val === null || val === undefined) return "";
+  return String(val).trim();
+}
+
 function parseMoneyToNumber(str: string): number {
-  const num = parseFloat(str.replace(/[^\d,]/g, "").replace(",", "."));
+  // Aceita "R$ 5.864,74" → 5864.74
+  const clean = str.replace(/[^\d,]/g, "").replace(",", ".");
+  const num = parseFloat(clean);
   return isNaN(num) ? 0 : num;
 }
 
