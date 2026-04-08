@@ -1,7 +1,8 @@
-import { Download, Image as ImageIcon, RefreshCw } from "lucide-react";
+import { Download, Image as ImageIcon, RefreshCw, Loader2 } from "lucide-react";
 import { useRef, useEffect, useState } from "react";
 import { TravelData } from "@/types/travel";
 import { Button } from "@/components/ui/button";
+import { useDestinationImage } from "@/hooks/useDestinationImage";
 
 interface CanvasPreviewProps {
   data: TravelData;
@@ -113,7 +114,20 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
 
 // ─── LÂMINA STORY (1080 × 1350) ───────────────────────────────────────────────
 
-function drawStory(canvas: HTMLCanvasElement, data: TravelData, W: number, H: number) {
+function drawBgImage(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, w: number, h: number) {
+  if (!img.naturalWidth || !img.naturalHeight) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+  const sw = img.naturalWidth * scale;
+  const sh = img.naturalHeight * scale;
+  ctx.drawImage(img, x + (w - sw) / 2, y + (h - sh) / 2, sw, sh);
+  ctx.restore();
+}
+
+function drawStory(canvas: HTMLCanvasElement, data: TravelData, W: number, H: number, bgImage: HTMLImageElement | null = null) {
   const ctx = canvas.getContext("2d")!;
   canvas.width = W;
   canvas.height = H;
@@ -124,50 +138,49 @@ function drawStory(canvas: HTMLCanvasElement, data: TravelData, W: number, H: nu
   ctx.fillStyle = "#0d1b2a";
   ctx.fillRect(0, 0, W, H);
 
-  // Céu
-  const skyGrd = ctx.createLinearGradient(0, 0, 0, imgH * 0.58);
-  skyGrd.addColorStop(0, sky);
-  skyGrd.addColorStop(1, "#d4f1f9");
-  ctx.fillStyle = skyGrd;
-  ctx.fillRect(0, 0, W, imgH * 0.58);
+  if (bgImage) {
+    drawBgImage(ctx, bgImage, 0, 0, W, imgH);
+  } else {
+    // Synthetic landscape fallback
+    const skyGrd = ctx.createLinearGradient(0, 0, 0, imgH * 0.58);
+    skyGrd.addColorStop(0, sky);
+    skyGrd.addColorStop(1, "#d4f1f9");
+    ctx.fillStyle = skyGrd;
+    ctx.fillRect(0, 0, W, imgH * 0.58);
 
-  // Sol
-  ctx.fillStyle = "rgba(255,253,200,0.92)";
-  ctx.beginPath();
-  ctx.arc(W * 0.73, imgH * 0.16, W * 0.057, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Nuvens
-  ctx.fillStyle = "rgba(255,255,255,0.6)";
-  [[0.08, 0.2, 68, 26], [0.26, 0.13, 90, 32], [0.47, 0.18, 72, 26]].forEach(([x, y, rx, ry]) => {
+    ctx.fillStyle = "rgba(255,253,200,0.92)";
     ctx.beginPath();
-    ctx.ellipse(W * x, imgH * y, rx as number, ry as number, 0, 0, Math.PI * 2);
+    ctx.arc(W * 0.73, imgH * 0.16, W * 0.057, 0, Math.PI * 2);
     ctx.fill();
-  });
 
-  // Água
-  const waterY = imgH * 0.58, waterH = imgH * 0.24;
-  const wGrd = ctx.createLinearGradient(0, waterY, 0, waterY + waterH);
-  wGrd.addColorStop(0, water);
-  wGrd.addColorStop(1, "#0a5a6e");
-  ctx.fillStyle = wGrd;
-  ctx.fillRect(0, waterY, W, waterH);
-  ctx.strokeStyle = "rgba(255,255,255,0.22)";
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(0, waterY);
-  for (let x = 0; x <= W; x += 8) ctx.lineTo(x, waterY + 5 * Math.sin((x / 70) * Math.PI));
-  ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    [[0.08, 0.2, 68, 26], [0.26, 0.13, 90, 32], [0.47, 0.18, 72, 26]].forEach(([x, y, rx, ry]) => {
+      ctx.beginPath();
+      ctx.ellipse(W * x, imgH * y, rx as number, ry as number, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
 
-  // Areia
-  ctx.fillStyle = sand;
-  ctx.fillRect(0, waterY + waterH, W, imgH - (waterY + waterH));
+    const waterY = imgH * 0.58, waterH = imgH * 0.24;
+    const wGrd = ctx.createLinearGradient(0, waterY, 0, waterY + waterH);
+    wGrd.addColorStop(0, water);
+    wGrd.addColorStop(1, "#0a5a6e");
+    ctx.fillStyle = wGrd;
+    ctx.fillRect(0, waterY, W, waterH);
+    ctx.strokeStyle = "rgba(255,255,255,0.22)";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(0, waterY);
+    for (let x = 0; x <= W; x += 8) ctx.lineTo(x, waterY + 5 * Math.sin((x / 70) * Math.PI));
+    ctx.stroke();
 
-  // Palmeiras
-  drawPalm(ctx, W * 0.13, imgH * 0.19, imgH * 0.33, palm);
-  drawPalm(ctx, W * 0.71, imgH * 0.2, imgH * 0.24, palm);
+    ctx.fillStyle = sand;
+    ctx.fillRect(0, waterY + waterH, W, imgH - (waterY + waterH));
 
-  // Overlay
+    drawPalm(ctx, W * 0.13, imgH * 0.19, imgH * 0.33, palm);
+    drawPalm(ctx, W * 0.71, imgH * 0.2, imgH * 0.24, palm);
+  }
+
+  // Overlay (always — darkens image or illustration for text legibility)
   const ovGrd = ctx.createLinearGradient(0, 0, 0, imgH);
   ovGrd.addColorStop(0.55, "rgba(0,0,0,0)");
   ovGrd.addColorStop(1, "rgba(13,27,42,0.72)");
@@ -243,15 +256,16 @@ function drawStory(canvas: HTMLCanvasElement, data: TravelData, W: number, H: nu
     ctx.fillStyle = "#8aaabb";
     ctx.font = `${Math.round(H * 0.013)}px sans-serif`;
     ctx.fillText("A PARTIR DE", px2, py2);
-    py2 += Math.round(H * 0.018);
+    // Gap must be >= font size of the parcelas number (0.048H) to avoid overlap
+    py2 += Math.round(H * 0.054);
     ctx.fillStyle = "#00d4e8";
     ctx.font = `900 ${Math.round(H * 0.048)}px sans-serif`;
     ctx.fillText(`${data.parcelas}x`, px2, py2);
-    py2 += Math.round(H * 0.008);
+    py2 += Math.round(H * 0.054);
     ctx.fillStyle = "#fff";
     ctx.font = `900 ${Math.round(H * 0.056)}px sans-serif`;
-    ctx.fillText(`R$ ${data.precoParcela.replace("R$ ", "")}`, px2, py2 + Math.round(H * 0.048));
-    py2 += Math.round(H * 0.062);
+    ctx.fillText(`R$ ${data.precoParcela.replace("R$ ", "")}`, px2, py2);
+    py2 += Math.round(H * 0.064);
     if (data.precoAVista) {
       ctx.fillStyle = "#fff";
       ctx.font = `600 ${Math.round(H * 0.014)}px sans-serif`;
@@ -310,7 +324,7 @@ function drawStory(canvas: HTMLCanvasElement, data: TravelData, W: number, H: nu
 
 // ─── LÂMINA FEED (1080 × 1080) ────────────────────────────────────────────────
 
-function drawFeed(canvas: HTMLCanvasElement, data: TravelData, W: number, H: number) {
+function drawFeed(canvas: HTMLCanvasElement, data: TravelData, W: number, H: number, bgImage: HTMLImageElement | null = null) {
   const ctx = canvas.getContext("2d")!;
   canvas.width = W;
   canvas.height = H;
@@ -322,50 +336,47 @@ function drawFeed(canvas: HTMLCanvasElement, data: TravelData, W: number, H: num
   ctx.fillStyle = "#0d1b2a";
   ctx.fillRect(0, 0, W, H);
 
-  // Céu
-  const skyGrd = ctx.createLinearGradient(0, 0, 0, imgH * 0.6);
-  skyGrd.addColorStop(0, sky);
-  skyGrd.addColorStop(1, "#d4f1f9");
-  ctx.fillStyle = skyGrd;
-  ctx.fillRect(0, 0, W, imgH * 0.6);
+  if (bgImage) {
+    drawBgImage(ctx, bgImage, 0, 0, W, imgH);
+  } else {
+    const skyGrd = ctx.createLinearGradient(0, 0, 0, imgH * 0.6);
+    skyGrd.addColorStop(0, sky);
+    skyGrd.addColorStop(1, "#d4f1f9");
+    ctx.fillStyle = skyGrd;
+    ctx.fillRect(0, 0, W, imgH * 0.6);
 
-  // Sol
-  ctx.fillStyle = "rgba(255,253,200,0.92)";
-  ctx.beginPath();
-  ctx.arc(W * 0.76, imgH * 0.18, W * 0.055, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Nuvens
-  ctx.fillStyle = "rgba(255,255,255,0.6)";
-  [[0.1, 0.22, 75, 28], [0.32, 0.14, 95, 34], [0.54, 0.19, 70, 25]].forEach(([x, y, rx, ry]) => {
+    ctx.fillStyle = "rgba(255,253,200,0.92)";
     ctx.beginPath();
-    ctx.ellipse(W * x, imgH * y, rx as number, ry as number, 0, 0, Math.PI * 2);
+    ctx.arc(W * 0.76, imgH * 0.18, W * 0.055, 0, Math.PI * 2);
     ctx.fill();
-  });
 
-  // Água
-  const waterY = imgH * 0.6, waterH = imgH * 0.24;
-  const wGrd = ctx.createLinearGradient(0, waterY, 0, waterY + waterH);
-  wGrd.addColorStop(0, water);
-  wGrd.addColorStop(1, "#0a5a6e");
-  ctx.fillStyle = wGrd;
-  ctx.fillRect(0, waterY, W, waterH);
-  ctx.strokeStyle = "rgba(255,255,255,0.2)";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(0, waterY);
-  for (let x = 0; x <= W; x += 8) ctx.lineTo(x, waterY + 5 * Math.sin((x / 70) * Math.PI));
-  ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    [[0.1, 0.22, 75, 28], [0.32, 0.14, 95, 34], [0.54, 0.19, 70, 25]].forEach(([x, y, rx, ry]) => {
+      ctx.beginPath();
+      ctx.ellipse(W * x, imgH * y, rx as number, ry as number, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
 
-  // Areia
-  ctx.fillStyle = sand;
-  ctx.fillRect(0, waterY + waterH, W, imgH - (waterY + waterH));
+    const waterY = imgH * 0.6, waterH = imgH * 0.24;
+    const wGrd = ctx.createLinearGradient(0, waterY, 0, waterY + waterH);
+    wGrd.addColorStop(0, water);
+    wGrd.addColorStop(1, "#0a5a6e");
+    ctx.fillStyle = wGrd;
+    ctx.fillRect(0, waterY, W, waterH);
+    ctx.strokeStyle = "rgba(255,255,255,0.2)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, waterY);
+    for (let x = 0; x <= W; x += 8) ctx.lineTo(x, waterY + 5 * Math.sin((x / 70) * Math.PI));
+    ctx.stroke();
 
-  // Palmeiras
-  drawPalm(ctx, W * 0.1, imgH * 0.2, imgH * 0.35, palm);
-  drawPalm(ctx, W * 0.72, imgH * 0.22, imgH * 0.26, palm);
+    ctx.fillStyle = sand;
+    ctx.fillRect(0, waterY + waterH, W, imgH - (waterY + waterH));
 
-  // Overlay
+    drawPalm(ctx, W * 0.1, imgH * 0.2, imgH * 0.35, palm);
+    drawPalm(ctx, W * 0.72, imgH * 0.22, imgH * 0.26, palm);
+  }
+
   const ovGrd = ctx.createLinearGradient(0, 0, 0, imgH);
   ovGrd.addColorStop(0.5, "rgba(0,0,0,0)");
   ovGrd.addColorStop(1, "rgba(13,27,42,0.75)");
@@ -448,16 +459,17 @@ function drawFeed(canvas: HTMLCanvasElement, data: TravelData, W: number, H: num
   ctx.fillStyle = "#8aaabb";
   ctx.font = `${Math.round(H * 0.014)}px sans-serif`;
   ctx.fillText("A PARTIR DE", px2, py2);
-  py2 += Math.round(H * 0.022);
+  py2 += Math.round(H * 0.046); // gap >= font size of parcelas (0.038H)
 
   ctx.fillStyle = "#00d4e8";
   ctx.font = `900 ${Math.round(H * 0.038)}px sans-serif`;
-  ctx.fillText(`${data.parcelas}x`, px2, py2 + Math.round(H * 0.032));
+  ctx.fillText(`${data.parcelas}x`, px2, py2);
+  py2 += Math.round(H * 0.054);
 
   ctx.fillStyle = "#fff";
   ctx.font = `900 ${Math.round(H * 0.05)}px sans-serif`;
-  ctx.fillText(`R$ ${data.precoParcela.replace("R$ ", "")}`, px2, py2 + Math.round(H * 0.08));
-  py2 += Math.round(H * 0.09);
+  ctx.fillText(`R$ ${data.precoParcela.replace("R$ ", "")}`, px2, py2);
+  py2 += Math.round(H * 0.06);
 
   if (data.precoAVista) {
     ctx.fillStyle = "#c8d8e8";
@@ -542,21 +554,23 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
   const [exportingStory, setExportingStory] = useState(false);
   const [exportingFeed, setExportingFeed] = useState(false);
 
+  const { imageEl, loading: imageLoading } = useDestinationImage(data.destino);
+
   // Preview story: 320px wide
   const SW = 320, SH = Math.round((320 * 1350) / 1080);
   // Preview feed: 320px
   const FW = 320, FH = 320;
 
   useEffect(() => {
-    if (storyRef.current) drawStory(storyRef.current, data, SW, SH);
-    if (feedRef.current) drawFeed(feedRef.current, data, FW, FH);
-  }, [data]);
+    if (storyRef.current) drawStory(storyRef.current, data, SW, SH, imageEl);
+    if (feedRef.current) drawFeed(feedRef.current, data, FW, FH, imageEl);
+  }, [data, imageEl]);
 
   const handleExportStory = async () => {
     setExportingStory(true);
     try {
       const canvas = document.createElement("canvas");
-      drawStory(canvas, data, 1080, 1350);
+      drawStory(canvas, data, 1080, 1350, imageEl);
       canvas.toBlob((blob) => {
         if (!blob) return;
         const url = URL.createObjectURL(blob);
@@ -575,7 +589,7 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
     setExportingFeed(true);
     try {
       const canvas = document.createElement("canvas");
-      drawFeed(canvas, data, 1080, 1080);
+      drawFeed(canvas, data, 1080, 1080, imageEl);
       canvas.toBlob((blob) => {
         if (!blob) return;
         const url = URL.createObjectURL(blob);
@@ -595,6 +609,15 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
       <div className="flex items-center gap-2">
         <ImageIcon className="w-5 h-5" style={{ color: "#00b4c8" }} />
         <h2 className="text-2xl font-display font-semibold">Lâminas</h2>
+        {imageLoading && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            Carregando foto real...
+          </span>
+        )}
+        {!imageLoading && imageEl && (
+          <span className="text-xs text-emerald-600 font-medium">● Foto real carregada</span>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

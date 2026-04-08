@@ -2,10 +2,6 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { TravelData, MarketingContent } from "@/types/travel";
 import { parseTravelData } from "./pdfParser";
 
-// ─── Prompt ──────────────────────────────────────────────────────────────────
-//
-// Formato imperativo — diz ao Gemini para EXTRAIR valores reais, não gerar descrições.
-
 const buildPrompt = (pdfText: string) => `Você é um sistema especializado em extrair dados de orçamentos de viagem do sistema Infotera (BWT Operadora, Brasil) e gerar conteúdo de marketing para agências.
 
 Analise o orçamento abaixo e retorne SOMENTE um JSON válido — sem explicações, sem markdown, sem blocos de código.
@@ -38,26 +34,30 @@ Extraia os valores REAIS do texto acima e preencha este JSON:
     "desconto": "5"
   },
   "marketing": {
-    "captionInstagram": "escreva uma legenda criativa para Instagram sobre este pacote para ${data => data.destino}. Mencione o hotel, duração, regime, preço POR PESSOA (total dividido pelo número de adultos) parcelado em 10x, desconto de 5% PIX. Use emojis e inclua hashtags relevantes ao destino no final.",
+    "captionInstagram": "escreva uma legenda criativa para Instagram sobre este pacote. Mencione o hotel, duração, regime, preço POR PESSOA (total dividido pelo número de adultos) parcelado em 10x, desconto de 5% PIX. Use emojis e inclua hashtags relevantes ao destino no final.",
     "captionWhatsApp": "escreva uma mensagem de vendas para WhatsApp sobre este pacote. Use *negrito* para destaques. Preço POR PESSOA. Mencione a agência como contato.",
     "emailScript": "escreva um e-mail de vendas completo. Primeira linha: Assunto: [assunto aqui]. Depois o corpo do e-mail com apresentação, detalhes do pacote, preço POR PESSOA, formas de pagamento e assinatura da agência.",
     "reelsScript": [
-      { "cena": 1, "tipo": "Hook", "duracao": "0–3s", "texto": "frase de impacto para abrir o vídeo sobre o destino" },
-      { "cena": 2, "tipo": "Produto", "duracao": "3–7s", "texto": "apresenta hotel, duração e regime" },
-      { "cena": 3, "tipo": "Oferta", "duracao": "7–11s", "texto": "preço por pessoa parcelado e opção PIX" },
-      { "cena": 4, "tipo": "Inclui", "duracao": "11–14s", "texto": "serviços incluídos resumidamente" },
-      { "cena": 5, "tipo": "CTA", "duracao": "14–15s", "texto": "chamada para ação contatando a agência" }
+      { "cena": 1, "tipo": "Hook", "duracao": "0-3s", "texto": "frase de impacto para abrir o vídeo sobre o destino" },
+      { "cena": 2, "tipo": "Produto", "duracao": "3-7s", "texto": "apresenta hotel, duração e regime" },
+      { "cena": 3, "tipo": "Oferta", "duracao": "7-11s", "texto": "preço por pessoa parcelado e opção PIX" },
+      { "cena": 4, "tipo": "Inclui", "duracao": "11-14s", "texto": "serviços incluídos resumidamente" },
+      { "cena": 5, "tipo": "CTA", "duracao": "14-15s", "texto": "chamada para ação contatando a agência" }
     ]
   }
 }
 
-IMPORTANTE:
-- Preencha os campos com os VALORES REAIS extraídos do texto acima
-- Preço no marketing = total ÷ adultos (por pessoa)
-- Se o documento mostra "0x Mala despachada", a bagagem NÃO inclui mala de porão
-- Retorne APENAS o JSON puro, sem nenhum caractere antes ou depois`;
-
-// ─── Parser ───────────────────────────────────────────────────────────────────
+REGRAS OBRIGATÓRIAS:
+1. O preço nos conteúdos de marketing deve ser SEMPRE POR PESSOA (total dividido pelo número de adultos)
+2. Parcelas = preço por pessoa dividido por 10
+3. Desconto à vista = 5% sobre o preço por pessoa
+4. Se houver "0x Mala despachada" no orçamento, MENCIONE claramente na bagagem e nos scripts
+5. O conteúdo de marketing deve referenciar a AGENCIA REVENDEDORA como contato, não a BWT diretamente
+6. Contextualize o destino com atrações reais, clima e experiências únicas daquele lugar
+7. Para destinos nacionais brasileiros, adapte o tom (praias nordestinas, gastronomia local, etc.)
+8. O campo "destino" é SEMPRE a cidade de CHEGADA onde fica o hotel, NUNCA a cidade de origem do passageiro. Ex: voo sai de Porto Velho e chega em Fortaleza => destino é Fortaleza
+9. O nome do hotel deve ser extraído SEM simbolos de estrelas
+10. Retorne APENAS o JSON puro, sem nenhum texto antes ou depois`;
 
 export async function parseWithGemini(pdfText: string): Promise<TravelData> {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
@@ -79,7 +79,6 @@ export async function parseWithGemini(pdfText: string): Promise<TravelData> {
 
     console.log("[Gemini] Resposta bruta (primeiros 500 chars):", raw.substring(0, 500));
 
-    // Remove markdown code fences se presentes
     const jsonText = raw
       .replace(/^```(?:json)?\s*/i, "")
       .replace(/\s*```\s*$/, "")
@@ -95,43 +94,38 @@ export async function parseWithGemini(pdfText: string): Promise<TravelData> {
 
     console.log("[Gemini] travelData extraído:", td);
 
-    // Calcula preços derivados a partir do total extraído
-    const totalNum = parseMoneyToNumber(String(td.precoTotal ?? "0"));
+    const totalNum = parseMoneyToNumber(cleanField(td.precoTotal));
     const numAdultos = Number(td.numAdultos) || 2;
     const parcelas = 10;
 
     const ppRaw = totalNum > 0 ? totalNum / numAdultos : 0;
     const precoPorPessoa = ppRaw > 0 ? formatMoney(ppRaw) : "Consultar";
-    const precoParcela = ppRaw > 0 ? formatMoney(ppRaw / parcelas) : "Consultar";
-    const precoAVista = ppRaw > 0 ? formatMoney(ppRaw * 0.95) : "Consultar";
-
-    // Garante que destino e hotel são strings reais, não descrições
-    const destino = cleanField(td.destino);
-    const hotel = cleanField(td.hotel);
+    const precoParcela  = ppRaw > 0 ? formatMoney(ppRaw / parcelas) : "Consultar";
+    const precoAVista   = ppRaw > 0 ? formatMoney(ppRaw * 0.95) : "Consultar";
 
     return {
-      destino: destino || "Destino",
-      hotel: hotel || "Hotel",
-      quartoTipo: td.quartoTipo && td.quartoTipo !== "null" ? cleanField(td.quartoTipo) : undefined,
-      regime: cleanField(td.regime) || "Consultar",
-      precoTotal: cleanField(td.precoTotal) || "R$ 0,00",
+      destino:       cleanField(td.destino) || "Destino",
+      hotel:         stripStars(cleanField(td.hotel)) || "Hotel",
+      quartoTipo:    nullableField(td.quartoTipo),
+      regime:        cleanField(td.regime) || "Consultar",
+      precoTotal:    cleanField(td.precoTotal) || "R$ 0,00",
       numAdultos,
       parcelas,
       precoPorPessoa,
       precoParcela,
       precoAVista,
-      desconto: "5",
-      duracao: cleanField(td.duracao) || "Consultar",
-      dataInicio: td.dataInicio && td.dataInicio !== "null" ? cleanField(td.dataInicio) : undefined,
-      dataFim: td.dataFim && td.dataFim !== "null" ? cleanField(td.dataFim) : undefined,
-      companhiaAerea: td.companhiaAerea && td.companhiaAerea !== "null" ? cleanField(td.companhiaAerea) : undefined,
-      bagagem: td.bagagem && td.bagagem !== "null" ? cleanField(td.bagagem) : undefined,
-      origemVoo: td.origemVoo && td.origemVoo !== "null" ? cleanField(td.origemVoo) : undefined,
-      agencia: td.agencia && td.agencia !== "null" ? cleanField(td.agencia) : undefined,
-      tipoProduto: cleanField(td.tipoProduto) || "Pacote",
-      campanha: td.campanha && td.campanha !== "null" ? cleanField(td.campanha) : undefined,
-      inclui: Array.isArray(td.inclui) ? (td.inclui as string[]).filter(Boolean) : [],
-      roteiro: [],
+      desconto:      "5",
+      duracao:       cleanField(td.duracao) || "Consultar",
+      dataInicio:    nullableField(td.dataInicio),
+      dataFim:       nullableField(td.dataFim),
+      companhiaAerea:nullableField(td.companhiaAerea),
+      bagagem:       nullableField(td.bagagem),
+      origemVoo:     nullableField(td.origemVoo),
+      agencia:       nullableField(td.agencia),
+      tipoProduto:   cleanField(td.tipoProduto) || "Pacote",
+      campanha:      nullableField(td.campanha),
+      inclui:        Array.isArray(td.inclui) ? (td.inclui as string[]).filter(Boolean) : [],
+      roteiro:       [],
       marketing,
     };
   } catch (err) {
@@ -141,15 +135,25 @@ export async function parseWithGemini(pdfText: string): Promise<TravelData> {
   }
 }
 
-// ─── Utilitários ──────────────────────────────────────────────────────────────
-
 function cleanField(val: unknown): string {
   if (val === null || val === undefined) return "";
   return String(val).trim();
 }
 
+function nullableField(val: unknown): string | undefined {
+  const s = cleanField(val);
+  if (!s || s === "null" || s === "undefined") return undefined;
+  return s;
+}
+
+function stripStars(name: string): string {
+  return name
+    .replace(/[\u2605\u2606\u2B50\u26AA\u26AB\u25A0\u25A1\u2B1B\u2B1C]+/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function parseMoneyToNumber(str: string): number {
-  // Aceita "R$ 5.864,74" → 5864.74
   const clean = str.replace(/[^\d,]/g, "").replace(",", ".");
   const num = parseFloat(clean);
   return isNaN(num) ? 0 : num;
