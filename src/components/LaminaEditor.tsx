@@ -38,11 +38,32 @@ interface Props {
   initialStoryState: LaminaState;
   onClose: () => void;
   onSave: (feedState: LaminaState, storyState: LaminaState) => void;
+  onDataChange?: (data: TravelData) => void;
+}
+
+// ─── Small reusable input ─────────────────────────────────────────────────────
+
+function LabeledInput({ label, value, onChange, placeholder }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string;
+}) {
+  return (
+    <div className="space-y-0.5">
+      <label className="text-xs text-muted-foreground">{label}</label>
+      <input
+        type="text"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full text-xs rounded-lg px-2 py-1.5"
+        style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#e2e8f0", outline: "none" }}
+      />
+    </div>
+  );
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function LaminaEditor({ data, initialFeedState, initialStoryState, onClose, onSave }: Props) {
+export default function LaminaEditor({ data, initialFeedState, initialStoryState, onClose, onSave, onDataChange }: Props) {
   const [format, setFormat] = useState<Format>("feed");
   const [feedState, setFeedState] = useState<LaminaState>(initialFeedState);
   const [storyState, setStoryState] = useState<LaminaState>(initialStoryState);
@@ -50,6 +71,10 @@ export default function LaminaEditor({ data, initialFeedState, initialStoryState
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [bgLoading, setBgLoading] = useState(false);
+  const [localData, setLocalData] = useState<TravelData>(data);
+
+  const updateData = (patch: Partial<TravelData>) =>
+    setLocalData(prev => ({ ...prev, ...patch }));
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hitsRef = useRef<HitRegion[]>([]);
@@ -76,8 +101,8 @@ export default function LaminaEditor({ data, initialFeedState, initialStoryState
     if (!canvas) return;
     const opts: DrawOpts = { laminaState: curState, hoveredKey, selectedKey };
     const hits = format === "feed"
-      ? drawFeed(canvas, data, CANVAS_W, CANVAS_H, bgImage, opts)
-      : drawStory(canvas, data, CANVAS_W, CANVAS_H, bgImage, opts);
+      ? drawFeed(canvas, localData, CANVAS_W, CANVAS_H, bgImage, opts)
+      : drawStory(canvas, localData, CANVAS_W, CANVAS_H, bgImage, opts);
     hitsRef.current = hits;
   }, [curState, hoveredKey, selectedKey, format, data, bgImage, CANVAS_W, CANVAS_H]);
 
@@ -238,13 +263,13 @@ export default function LaminaEditor({ data, initialFeedState, initialStoryState
       const scaleFactor = exportW / CANVAS_W;
       const scaledState = scaleLaminaState(curState, CANVAS_W, exportW);
       const fn = format === "feed" ? drawFeed : drawStory;
-      fn(exportCanvas, data, exportW, exportH, bgImage, { laminaState: scaledState });
+      fn(exportCanvas, localData, exportW, exportH, bgImage, { laminaState: scaledState });
       exportCanvas.toBlob((blob) => {
         if (!blob) return;
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `bwt-${data.destino.toLowerCase().replace(/\s+/g, "-")}-${format}.png`;
+        a.download = `bwt-${localData.destino.toLowerCase().replace(/\s+/g, "-")}-${format}.png`;
         a.click();
         URL.revokeObjectURL(url);
       }, "image/png");
@@ -312,7 +337,7 @@ export default function LaminaEditor({ data, initialFeedState, initialStoryState
           </Button>
           <Button
             size="sm" variant="ghost"
-            onClick={() => { onSave(feedState, storyState); onClose(); }}
+            onClick={() => { onSave(feedState, storyState); onDataChange?.(localData); onClose(); }}
             style={{ color: "#a0aec0" }}
             className="gap-1 text-xs"
           >
@@ -491,6 +516,73 @@ export default function LaminaEditor({ data, initialFeedState, initialStoryState
               >
                 <RotateCcw className="w-3 h-3" /> Resetar Posição
               </Button>
+
+              {/* ── Text content per element ── */}
+              <div className="space-y-2 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Conteúdo</p>
+
+                {selectedElemMeta.key === "badge" && (
+                  <LabeledInput label="Desconto (%)" value={localData.desconto ?? ""} onChange={v => updateData({ desconto: v })} placeholder="5" />
+                )}
+
+                {selectedElemMeta.key === "tag" && (<>
+                  <LabeledInput label="Tipo de Produto" value={localData.tipoProduto ?? ""} onChange={v => updateData({ tipoProduto: v })} placeholder="Aéreo + Hotel" />
+                  <LabeledInput label="Origem do Voo" value={localData.origemVoo ?? ""} onChange={v => updateData({ origemVoo: v || undefined } as Partial<TravelData>)} placeholder="Curitiba (CWB)" />
+                </>)}
+
+                {selectedElemMeta.key === "destination" && (<>
+                  <LabeledInput label="Destino" value={localData.destino} onChange={v => updateData({ destino: v })} />
+                  <LabeledInput label="Hotel" value={localData.hotel} onChange={v => updateData({ hotel: v })} />
+                  <LabeledInput label="Duração" value={localData.duracao} onChange={v => updateData({ duracao: v })} placeholder="6 Noites" />
+                  <LabeledInput label="Regime" value={localData.regime} onChange={v => updateData({ regime: v })} placeholder="All Inclusive" />
+                </>)}
+
+                {selectedElemMeta.key === "inclui" && (
+                  <div className="space-y-1">
+                    {(localData.inclui ?? []).map((item, i) => (
+                      <div key={i} className="flex gap-1">
+                        <input
+                          type="text"
+                          value={item}
+                          onChange={e => {
+                            const next = [...(localData.inclui ?? [])];
+                            next[i] = e.target.value;
+                            updateData({ inclui: next });
+                          }}
+                          className="flex-1 text-xs rounded-lg px-2 py-1.5"
+                          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#e2e8f0", outline: "none" }}
+                        />
+                        <button
+                          onClick={() => updateData({ inclui: (localData.inclui ?? []).filter((_, j) => j !== i) })}
+                          className="px-1.5 rounded text-red-400 hover:bg-red-500/20 text-xs"
+                        >✕</button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => updateData({ inclui: [...(localData.inclui ?? []), ""] })}
+                      className="w-full text-xs py-1 rounded-lg text-cyan-400 hover:bg-white/5"
+                      style={{ border: "1px dashed rgba(0,180,200,0.3)" }}
+                    >+ Adicionar item</button>
+                  </div>
+                )}
+
+                {selectedElemMeta.key === "price" && (<>
+                  <LabeledInput label="Por pessoa" value={localData.precoPorPessoa} onChange={v => updateData({ precoPorPessoa: v })} placeholder="R$ 9.308,49" />
+                  <LabeledInput label="Nº parcelas" value={String(localData.parcelas)} onChange={v => updateData({ parcelas: parseInt(v) || localData.parcelas })} placeholder="10" />
+                  <LabeledInput label="Valor parcela" value={localData.precoParcela} onChange={v => updateData({ precoParcela: v })} placeholder="R$ 930,85" />
+                  <LabeledInput label="À vista" value={localData.precoAVista} onChange={v => updateData({ precoAVista: v })} placeholder="R$ 8.843,06" />
+                </>)}
+
+                {selectedElemMeta.key === "datePill" && (<>
+                  <LabeledInput label="Data início" value={localData.dataInicio ?? ""} onChange={v => updateData({ dataInicio: v || undefined } as Partial<TravelData>)} placeholder="01/08/2026" />
+                  <LabeledInput label="Data fim" value={localData.dataFim ?? ""} onChange={v => updateData({ dataFim: v || undefined } as Partial<TravelData>)} placeholder="07/08/2026" />
+                </>)}
+
+                {selectedElemMeta.key === "airline" && (<>
+                  <LabeledInput label="Cia. Aérea" value={localData.companhiaAerea ?? ""} onChange={v => updateData({ companhiaAerea: v || undefined } as Partial<TravelData>)} placeholder="LATAM" />
+                  <LabeledInput label="Bagagem" value={localData.bagagem ?? ""} onChange={v => updateData({ bagagem: v || undefined } as Partial<TravelData>)} placeholder="1 mala despachada" />
+                </>)}
+              </div>
             </div>
           )}
 

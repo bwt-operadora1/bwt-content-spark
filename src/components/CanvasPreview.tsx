@@ -8,12 +8,13 @@ import LaminaEditor from "./LaminaEditor";
 
 interface CanvasPreviewProps {
   data: TravelData;
+  onDataChange?: (data: TravelData) => void;
 }
 
 const SW = 320, SH = Math.round((320 * 1350) / 1080);
 const FW = 320, FH = 320;
 
-const CanvasPreview = ({ data }: CanvasPreviewProps) => {
+const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
   const storyRef = useRef<HTMLCanvasElement>(null);
   const feedRef = useRef<HTMLCanvasElement>(null);
 
@@ -165,6 +166,7 @@ const CanvasPreview = ({ data }: CanvasPreviewProps) => {
           initialStoryState={storyState}
           onClose={() => setEditorOpen(false)}
           onSave={(fs, ss) => { setFeedState(fs); setStoryState(ss); }}
+          onDataChange={onDataChange}
         />
       )}
     </>

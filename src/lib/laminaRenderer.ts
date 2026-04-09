@@ -183,11 +183,11 @@ export function drawBgImage(ctx: CanvasRenderingContext2D, img: HTMLImageElement
 function drawDiscountBadge(
   ctx: CanvasRenderingContext2D,
   W: number, H: number, desconto: string, _accentColor: string,
-  dx = 0, dy = 0,
+  dx = 0, dy = 0, scale = 1.0,
 ): { x: number; y: number; w: number; h: number } {
-  const bW = Math.round(W * 0.24);
-  const row1H = Math.round(H * 0.032);
-  const row2H = Math.round(H * 0.072);
+  const bW = Math.round(W * 0.24 * scale);
+  const row1H = Math.round(H * 0.032 * scale);
+  const row2H = Math.round(H * 0.072 * scale);
   const totalH = row1H + row2H;
   const bX = W - bW + dx;
   const bY = dy;
@@ -202,11 +202,11 @@ function drawDiscountBadge(
   // All text white
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "center";
-  ctx.font = `700 ${Math.round(H * 0.016)}px sans-serif`;
+  ctx.font = `700 ${Math.round(H * 0.016 * scale)}px sans-serif`;
   ctx.fillText("COM ATÉ", bX + bW / 2, bY + row1H * 0.76);
-  ctx.font = `900 ${Math.round(H * 0.048)}px sans-serif`;
+  ctx.font = `900 ${Math.round(H * 0.048 * scale)}px sans-serif`;
   ctx.fillText(`${desconto}%`, bX + bW / 2, bY + row1H + row2H * 0.58);
-  ctx.font = `800 ${Math.round(H * 0.025)}px sans-serif`;
+  ctx.font = `800 ${Math.round(H * 0.025 * scale)}px sans-serif`;
   ctx.fillText("OFF", bX + bW / 2, bY + row1H + row2H * 0.92);
 
   return { x: bX, y: bY, w: bW, h: totalH };
@@ -217,14 +217,15 @@ function drawProductTag(
   W: number, H: number, imgH: number, tipoProduto: string, accentColor: string,
   dx = 0, dy = 0,
   origemVoo?: string,
+  scale = 1.0,
 ): { x: number; y: number; w: number; h: number } {
-  const tagH = Math.round(H * 0.036);
+  const tagH = Math.round(H * 0.036 * scale);
   const tagY = imgH - tagH - Math.round(H * 0.018) + dy;
   const tagX = Math.round(W * 0.037) + dx;
 
   // "Saída de [cidade] — Aeroporto" above the tag
   if (origemVoo) {
-    const originFs = Math.round(H * 0.016);
+    const originFs = Math.round(H * 0.016 * scale);
     ctx.font = `600 ${originFs}px sans-serif`;
     ctx.textAlign = "left";
     ctx.fillStyle = "rgba(255,255,255,0.90)";
@@ -240,8 +241,8 @@ function drawProductTag(
     .replace(/Transfer|Traslado/gi, "\uD83D\uDE8C Transfer")
     .replace(/Cruzeiro/gi, "\uD83D\uDEF3 Cruzeiro")
     .replace(/Pacote/gi, "\uD83C\uDF1F Pacote");
-  ctx.font = `600 ${Math.round(H * 0.019)}px sans-serif`;
-  const tagW = Math.min(ctx.measureText(tagTxt).width + Math.round(W * 0.04), W * 0.55);
+  ctx.font = `600 ${Math.round(H * 0.019 * scale)}px sans-serif`;
+  const tagW = Math.min(ctx.measureText(tagTxt).width + Math.round(W * 0.04 * scale), W * 0.65);
   ctx.fillStyle = "rgba(10,21,40,0.88)";
   rrect(ctx, tagX, tagY, tagW, tagH, tagH / 2); ctx.fill();
   ctx.strokeStyle = accentColor;
@@ -249,7 +250,7 @@ function drawProductTag(
   rrect(ctx, tagX, tagY, tagW, tagH, tagH / 2); ctx.stroke();
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "left";
-  ctx.fillText(tagTxt, tagX + Math.round(W * 0.018), tagY + tagH * 0.68);
+  ctx.fillText(tagTxt, tagX + Math.round(W * 0.018 * scale), tagY + tagH * 0.68);
   return { x: tagX, y: tagY, w: tagW, h: tagH };
 }
 
@@ -393,7 +394,7 @@ export function drawStory(
   { const es = getStyle(st, "badge");
     if (es.visible && data.desconto) {
       const color = es.color || "#a78bfa";
-      const b = drawDiscountBadge(ctx, W, H, data.desconto, color, es.dx, es.dy);
+      const b = drawDiscountBadge(ctx, W, H, data.desconto, color, es.dx, es.dy, es.fontSizeScale);
       hits.push({ key: "badge", label: "Desconto", ...b });
       highlightIfNeeded(ctx, b, "badge", "Desconto", W, opts);
     }
@@ -418,7 +419,7 @@ export function drawStory(
   { const es = getStyle(st, "tag");
     if (es.visible) {
       const color = es.color || "rgba(107,33,168,0.75)";
-      const b = drawProductTag(ctx, W, H, imgH, data.tipoProduto || "Aéreo + Hotel", color, es.dx, es.dy, data.origemVoo);
+      const b = drawProductTag(ctx, W, H, imgH, data.tipoProduto || "Aéreo + Hotel", color, es.dx, es.dy, data.origemVoo, es.fontSizeScale);
       hits.push({ key: "tag", label: "Tipo", ...b });
       highlightIfNeeded(ctx, b, "tag", "Tipo", W, opts);
     }
@@ -660,7 +661,7 @@ export function drawFeed(
   { const es = getStyle(st, "badge");
     if (es.visible && data.desconto) {
       const color = es.color || "#a78bfa";
-      const b = drawDiscountBadge(ctx, W, H, data.desconto, color, es.dx, es.dy);
+      const b = drawDiscountBadge(ctx, W, H, data.desconto, color, es.dx, es.dy, es.fontSizeScale);
       hits.push({ key: "badge", label: "Desconto", ...b });
       highlightIfNeeded(ctx, b, "badge", "Desconto", W, opts);
     }
@@ -685,7 +686,7 @@ export function drawFeed(
   { const es = getStyle(st, "tag");
     if (es.visible) {
       const color = es.color || "rgba(107,33,168,0.75)";
-      const b = drawProductTag(ctx, W, H, imgH, data.tipoProduto || "Aéreo + Hotel", color, es.dx, es.dy, data.origemVoo);
+      const b = drawProductTag(ctx, W, H, imgH, data.tipoProduto || "Aéreo + Hotel", color, es.dx, es.dy, data.origemVoo, es.fontSizeScale);
       hits.push({ key: "tag", label: "Tipo", ...b });
       highlightIfNeeded(ctx, b, "tag", "Tipo", W, opts);
     }

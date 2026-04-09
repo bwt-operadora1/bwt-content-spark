@@ -159,7 +159,7 @@ const Index = () => {
                 </TabsList>
 
                 <TabsContent value="lamina" className="mt-6">
-                  <CanvasPreview key={`lamina-${contentKey}`} data={travelData} />
+                  <CanvasPreview key={`lamina-${contentKey}`} data={travelData} onDataChange={handleDataChange} />
                 </TabsContent>
                 <TabsContent value="video" className="mt-6">
                   <VideoGenerator key={`video-${contentKey}`} data={travelData} />
