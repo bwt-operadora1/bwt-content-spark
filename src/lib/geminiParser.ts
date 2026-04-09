@@ -1,11 +1,11 @@
 import type { TravelData, MarketingContent } from "@/types/travel";
 import { parseTravelData } from "./pdfParser";
-import { supabase } from "@/integrations/supabase/client";
 
 export async function parseWithGemini(
   pdfText: string,
 ): Promise<TravelData> {
   try {
+    const { supabase } = await import("@/integrations/supabase/client");
     const { data, error } = await supabase.functions.invoke("parse-pdf", {
       body: { pdfText },
     });
