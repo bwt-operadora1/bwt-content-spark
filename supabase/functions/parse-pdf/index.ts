@@ -70,33 +70,36 @@ serve(async (req) => {
       });
     }
 
-    const apiKey = Deno.env.get("GEMINI_API_KEY");
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: "GEMINI_API_KEY not configured" }), {
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!lovableApiKey) {
+      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      "https://ai-gateway.lovable.dev/v1/chat/completions",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${lovableApiKey}`,
+        },
         body: JSON.stringify({
-          contents: [
+          model: "google/gemini-2.5-flash",
+          messages: [
             {
-              parts: [
-                {
-                  text: `${GEMINI_PROMPT}\n\n--- TEXTO DO ORÇAMENTO INFOTERA ---\n\n${pdfText}`,
-                },
-              ],
+              role: "system",
+              content: GEMINI_PROMPT,
+            },
+            {
+              role: "user",
+              content: `--- TEXTO DO ORÇAMENTO INFOTERA ---\n\n${pdfText}`,
             },
           ],
-          generationConfig: {
-            temperature: 0.3,
-            responseMimeType: "application/json",
-          },
+          temperature: 0.3,
+          response_format: { type: "json_object" },
         }),
       }
     );
