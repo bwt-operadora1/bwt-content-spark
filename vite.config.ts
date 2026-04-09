@@ -12,6 +12,9 @@ export default defineConfig(({ mode }) => ({
     allowedHosts: ["conteudo.bwtoperadora.com.br"],
     hmr: {
       overlay: false,
+      protocol: "wss",
+      host: "conteudo.bwtoperadora.com.br",
+      clientPort: 443,
     },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
