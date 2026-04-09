@@ -1,7 +1,8 @@
 
+const PEXELS_API_KEY = (import.meta.env.PEXELS_API_KEY || import.meta.env.VITE_PEXELS_API_KEY) as string | undefined;
+
 /**
- * Fetches a destination photo URL via the search-images edge function.
- * Falls back to Unsplash Source if the edge function fails.
+ * Fetches a single destination photo URL.
  */
 export async function fetchDestinationImage(keyword: string): Promise<string | null> {
   const urls = await fetchDestinationImages(keyword, 1);
@@ -9,25 +10,30 @@ export async function fetchDestinationImage(keyword: string): Promise<string | n
 }
 
 /**
- * Fetches multiple destination photo URLs (up to `count`).
- * Uses the search-images edge function (Pexels API server-side).
+ * Fetches multiple destination photo URLs (up to `count`) via Pexels API.
+ * Falls back to picsum.photos if Pexels is unavailable.
  */
 export async function fetchDestinationImages(keyword: string, count: number = 3): Promise<string[]> {
-  try {
-    const { supabase } = await import("@/integrations/supabase/client");
-    const { data, error } = await supabase.functions.invoke("search-images", {
-      body: { keyword, count },
-    });
-
-    if (!error && data?.urls && data.urls.length > 0) {
-      return data.urls;
+  if (PEXELS_API_KEY) {
+    try {
+      const res = await fetch(
+        `https://api.pexels.com/v1/search?query=${encodeURIComponent(keyword)}&per_page=${count}&orientation=landscape`,
+        { headers: { Authorization: PEXELS_API_KEY } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const urls = (data.photos ?? [])
+          .map((p: { src: { large2x?: string; large?: string } }) => p.src.large2x || p.src.large)
+          .filter(Boolean) as string[];
+        if (urls.length > 0) return urls;
+      }
+    } catch {
+      // fall through to fallback
     }
-  } catch {
-    // fall through to fallback
   }
 
-  // Fallback: Unsplash Source
+  // Fallback: deterministic placeholder images
   return Array.from({ length: count }, (_, i) =>
-    `https://source.unsplash.com/1080x720/?${encodeURIComponent(keyword)}&sig=${i + 1}`
+    `https://picsum.photos/seed/${encodeURIComponent(keyword)}-${i + 1}/1080/720`
   );
 }
