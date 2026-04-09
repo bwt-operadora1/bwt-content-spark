@@ -36,6 +36,7 @@ export interface TravelData {
   inclui?: string[];
   tipoProduto?: string;
   campanha?: string;
+  bloqueioAereo?: boolean;
   marketing?: MarketingContent;
 }
 

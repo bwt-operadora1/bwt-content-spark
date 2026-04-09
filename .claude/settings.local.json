@@ -8,7 +8,14 @@
       "Bash(./node_modules/.bin/tsc --noEmit)",
       "Bash(node_modules/.bin/tsc.cmd --noEmit)",
       "Bash(node node_modules/typescript/bin/tsc --noEmit)",
-      "Bash(bun run:*)"
+      "Bash(bun run:*)",
+      "Bash(python3 -c \"import sys, json; lines = sys.stdin.read\\(\\).strip\\(\\).split\\('\\\\n'\\); [print\\(json.loads\\(l\\).get\\('content',''\\)[:500] if isinstance\\(json.loads\\(l\\).get\\('content',''\\), str\\) else str\\(json.loads\\(l\\).get\\('content',''\\)\\)[:500]\\) for l in lines[-10:] if l]\")",
+      "Bash(node -e ':*)",
+      "Bash(node -e \"const r = /[\\\\u2600-\\\\u27BF\\\\u2900-\\\\u2BFF\\\\u1F000-\\\\u1FFFF\\\\uFE00-\\\\uFE0F]+/g; console.log\\('Hotel Rotorua inn Fortaleza'.replace\\(r,''\\)\\);\")",
+      "Bash(node -e \"var r = /[\\\\u2600-\\\\u27BF]/g; console.log\\('Hotel Rotorua inn Fortaleza'.replace\\(r,''\\).length\\);\")",
+      "Bash(node -e \"var r = /[\\\\u1F000-\\\\u1FFFF]/g; console.log\\(r.test\\('Hotel Rotorua inn Fortaleza'\\)\\); var s = 'Hotel Rotorua inn Fortaleza'; console.log\\(s.replace\\(r,''\\).length\\);\")",
+      "Bash(node -e \"var r = /[\\\\u{1F000}-\\\\u{1FFFF}]/gu; console.log\\('Hotel Rotorua inn Fortaleza'.replace\\(r,''\\).length\\);\")",
+      "Bash(npx vite:*)"
     ]
   }
 }

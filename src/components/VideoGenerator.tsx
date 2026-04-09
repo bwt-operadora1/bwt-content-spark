@@ -2,7 +2,8 @@ import { useRef, useEffect, useState } from "react";
 import { Video, Play, Loader2, Download, X, CheckCircle2 } from "lucide-react";
 import { TravelData } from "@/types/travel";
 import { Button } from "@/components/ui/button";
-import { useDestinationImage } from "@/hooks/useDestinationImage";
+import { useDestinationImages } from "@/hooks/useDestinationImage";
+import { Muxer, ArrayBufferTarget } from "mp4-muxer";
 
 // ─── Canvas dimensions ────────────────────────────────────────────────────────
 const PW = 270, PH = 480;   // preview (9:16 scaled)
@@ -28,14 +29,14 @@ function rrect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h
   ctx.closePath();
 }
 
-function wrapCenter(
+function wrapLeft(
   ctx: CanvasRenderingContext2D,
   text: string,
-  cx: number,
-  cy: number,
+  x: number,
+  y: number,
   maxW: number,
   lineH: number
-) {
+): number {
   const words = text.split(" ");
   const lines: string[] = [];
   let line = "";
@@ -49,8 +50,8 @@ function wrapCenter(
     }
   }
   if (line) lines.push(line);
-  const startY = cy - ((lines.length - 1) * lineH) / 2;
-  lines.forEach((l, i) => ctx.fillText(l, cx, startY + i * lineH));
+  lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineH));
+  return y + lines.length * lineH;
 }
 
 function getSceneAt(t: number): { idx: number; progress: number } {
@@ -66,9 +67,45 @@ function getSceneAt(t: number): { idx: number; progress: number } {
 }
 
 function textAlpha(progress: number, isLast: boolean): number {
-  if (progress < 0.22) return progress / 0.22;
-  if (!isLast && progress > 0.80) return 1 - (progress - 0.80) / 0.20;
+  if (progress < 0.18) return progress / 0.18;
+  if (!isLast && progress > 0.82) return 1 - (progress - 0.82) / 0.18;
   return 1;
+}
+
+// Ken Burns: subtle pan/zoom per scene
+const KB_CONFIGS = [
+  { s0: 1.04, s1: 1.12, x0: 0, x1: -0.02, y0: 0, y1: 0.01 },   // zoom in, drift left-down
+  { s0: 1.12, s1: 1.04, x0: -0.02, x1: 0.01, y0: 0, y1: 0 },    // zoom out, drift right
+  { s0: 1.08, s1: 1.08, x0: 0.02, x1: -0.02, y0: 0, y1: 0 },    // pan right→left
+  { s0: 1.06, s1: 1.14, x0: 0, x1: 0, y0: 0.01, y1: -0.01 },    // zoom in, pan up
+  { s0: 1.05, s1: 1.05, x0: -0.01, x1: 0.01, y0: 0, y1: 0 },    // gentle pan
+];
+
+function drawKenBurns(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  W: number,
+  H: number,
+  sceneIdx: number,
+  progress: number
+) {
+  if (!img.naturalWidth) return;
+  const kb = KB_CONFIGS[sceneIdx % KB_CONFIGS.length];
+  const scale = kb.s0 + (kb.s1 - kb.s0) * progress;
+  const ox = (kb.x0 + (kb.x1 - kb.x0) * progress) * W;
+  const oy = (kb.y0 + (kb.y1 - kb.y0) * progress) * H;
+
+  const imgAspect = img.naturalWidth / img.naturalHeight;
+  const canvasAspect = W / H;
+  let drawW, drawH;
+  if (imgAspect > canvasAspect) {
+    drawH = H * scale;
+    drawW = drawH * imgAspect;
+  } else {
+    drawW = W * scale;
+    drawH = drawW / imgAspect;
+  }
+  ctx.drawImage(img, (W - drawW) / 2 + ox, (H - drawH) / 2 + oy, drawW, drawH);
 }
 
 // ─── Frame renderer ───────────────────────────────────────────────────────────
@@ -76,7 +113,7 @@ function textAlpha(progress: number, isLast: boolean): number {
 function drawVideoFrame(
   canvas: HTMLCanvasElement,
   data: TravelData,
-  bgImage: HTMLImageElement | null,
+  bgImages: (HTMLImageElement | null)[],
   t: number
 ) {
   const W = canvas.width;
@@ -88,97 +125,142 @@ function drawVideoFrame(
   const isLast = idx === 4;
   const alpha = textAlpha(progress, isLast);
 
-  // Build scene list from Gemini output or use sensible defaults
+  // Build scene list
   const scenes: { tipo: string; texto: string }[] = (
     data.marketing?.reelsScript?.map((s) => ({ tipo: s.tipo, texto: s.texto })) ?? [
-      { tipo: "Hook", texto: `${data.destino} te espera! ✈ Que tal essa viagem?` },
-      { tipo: "Produto", texto: `${data.hotel} · ${data.duracao} · ${data.regime}` },
-      { tipo: "Oferta", texto: `${data.precoParcela}/mês · ${data.precoAVista} à vista` },
-      {
-        tipo: "Inclui",
-        texto: (data.inclui ?? []).slice(0, 3).join(" · ") || "Aéreo + Hotel + Transfer",
-      },
-      { tipo: "CTA", texto: "Reserve agora! Entre em contato com a agência 📲" },
+      { tipo: "DESTINO", texto: `${data.destino} te espera! ✈` },
+      { tipo: "PACOTE", texto: `${data.hotel}\n${data.duracao} · ${data.regime}` },
+      { tipo: "OFERTA", texto: `A partir de ${data.parcelas}x ${data.precoParcela}` },
+      { tipo: "INCLUI", texto: (data.inclui ?? []).slice(0, 3).join("\n") || "Aéreo + Hotel + Transfer" },
+      { tipo: "RESERVE JÁ", texto: "Entre em contato com a agência 📲" },
     ]
   );
 
   const scene = scenes[idx] ?? scenes[scenes.length - 1];
 
+  // Use different image per scene (cycle through available)
+  const img = bgImages.length > 0
+    ? (bgImages[idx % bgImages.length] ?? bgImages[0])
+    : null;
+
   // ── Background ──
-  ctx.fillStyle = "#0a1520";
+  ctx.fillStyle = "#050f1e";
   ctx.fillRect(0, 0, W, H);
 
-  if (bgImage && bgImage.naturalWidth > 0) {
-    const scale = Math.max(W / bgImage.naturalWidth, H / bgImage.naturalHeight);
-    const sw = bgImage.naturalWidth * scale;
-    const sh = bgImage.naturalHeight * scale;
-    ctx.drawImage(bgImage, (W - sw) / 2, (H - sh) / 2, sw, sh);
+  if (img && img.naturalWidth > 0) {
+    drawKenBurns(ctx, img, W, H, idx, progress);
   }
 
   // ── Gradient overlay ──
   const ov = ctx.createLinearGradient(0, 0, 0, H);
-  ov.addColorStop(0, "rgba(5,15,30,0.62)");
-  ov.addColorStop(0.4, "rgba(5,15,30,0.38)");
-  ov.addColorStop(1, "rgba(5,15,30,0.88)");
+  ov.addColorStop(0, "rgba(5,15,30,0.55)");
+  ov.addColorStop(0.35, "rgba(5,15,30,0.25)");
+  ov.addColorStop(0.65, "rgba(5,15,30,0.30)");
+  ov.addColorStop(1, "rgba(5,15,30,0.92)");
   ctx.fillStyle = ov;
   ctx.fillRect(0, 0, W, H);
 
-  // ── Scene indicator dots (top) ──
-  for (let i = 0; i < 5; i++) {
-    const r = i === idx ? W * 0.014 : W * 0.009;
-    ctx.beginPath();
-    ctx.arc(W * (0.28 + i * 0.11), H * 0.072, r, 0, Math.PI * 2);
-    ctx.fillStyle = i === idx ? "#00b4c8" : "rgba(255,255,255,0.3)";
-    ctx.fill();
+  // ── BWT branding top-left ──
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `700 ${Math.round(H * 0.022)}px sans-serif`;
+  ctx.textAlign = "left";
+  ctx.fillText("BWT OPERADORA", Math.round(W * 0.037), H * 0.088);
+  ctx.globalAlpha = 1;
+
+  const cardX = Math.round(W * 0.037);
+  const cardW = W - Math.round(W * 0.074);
+
+  const BWT_PURPLE = "#6B21A8";
+  const pad = Math.round(W * 0.05);
+
+  // ── Strong gradient only at bottom third ──────────────────────────────────
+  const grad2 = ctx.createLinearGradient(0, H * 0.52, 0, H);
+  grad2.addColorStop(0, "rgba(0,0,0,0)");
+  grad2.addColorStop(0.35, "rgba(0,0,0,0.55)");
+  grad2.addColorStop(1, "rgba(0,0,0,0.88)");
+  ctx.fillStyle = grad2;
+  ctx.fillRect(0, H * 0.52, W, H * 0.48);
+
+  // ── Helper: text with drop shadow ─────────────────────────────────────────
+  const shadow = (blur: number, col = "rgba(0,0,0,0.9)") => {
+    ctx.shadowColor = col; ctx.shadowBlur = blur;
+  };
+  const noShadow = () => { ctx.shadowBlur = 0; };
+
+  // ── Scene card — 60–74% zone ──────────────────────────────────────────────
+  ctx.globalAlpha = alpha;
+
+  const sceneFs = Math.round(H * 0.028);
+  const lineH   = Math.round(H * 0.036);
+
+  // Scene text — max 2 lines, with shadow
+  const sceneLines: string[] = [];
+  ctx.font = `700 ${sceneFs}px sans-serif`;
+  for (const rawLine of scene.texto.split("\n")) {
+    const words = rawLine.split(" ");
+    let line = "";
+    for (const w of words) {
+      const test = line ? `${line} ${w}` : w;
+      if (ctx.measureText(test).width > cardW && line) { sceneLines.push(line); line = w; }
+      else line = test;
+    }
+    if (line) sceneLines.push(line);
+  }
+  shadow(12);
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  let sy = Math.round(H * 0.64);
+  for (const line of sceneLines.slice(0, 2)) {
+    ctx.fillText(line, W / 2, sy);
+    sy += lineH;
+  }
+  noShadow();
+  ctx.globalAlpha = 1;
+
+  // ── Bottom info — 80–95% zone ─────────────────────────────────────────────
+  const destTxt = data.destino.toUpperCase();
+  let destFs = Math.round(H * 0.052);
+  ctx.font = `900 ${destFs}px sans-serif`;
+  ctx.textAlign = "center";
+  while (ctx.measureText(destTxt).width > cardW && destFs > 16) {
+    destFs -= 2; ctx.font = `900 ${destFs}px sans-serif`;
+  }
+  shadow(16);
+  ctx.fillStyle = "#ffffff";
+  const destY = Math.round(H * 0.82);
+  ctx.fillText(destTxt, W / 2, destY);
+  noShadow();
+
+  // Price pill + dates row — centered
+  const rowY = destY + Math.round(H * 0.050);
+  const priceTxt = `${data.parcelas}x ${data.precoParcela}`;
+  ctx.font = `700 ${Math.round(H * 0.024)}px sans-serif`;
+  const pPillH = Math.round(H * 0.038);
+  const pPillW = ctx.measureText(priceTxt).width + Math.round(W * 0.055);
+  ctx.fillStyle = BWT_PURPLE;
+  rrect(ctx, W / 2 - pPillW / 2, rowY, pPillW, pPillH, pPillH / 2);
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(priceTxt, W / 2, rowY + pPillH * 0.70);
+
+  if (data.dataInicio && data.dataFim) {
+    shadow(8);
+    ctx.fillStyle = "rgba(255,255,255,0.70)";
+    ctx.font = `500 ${Math.round(H * 0.018)}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(`${data.dataInicio} → ${data.dataFim}`, W / 2, rowY + pPillH + Math.round(H * 0.026));
+    noShadow();
   }
 
-  // ── Scene type label ──
-  ctx.globalAlpha = alpha * 0.85;
-  ctx.fillStyle = "#00b4c8";
-  ctx.font = `600 ${Math.round(H * 0.024)}px sans-serif`;
-  ctx.textAlign = "center";
-  ctx.fillText(scene.tipo.toUpperCase(), W / 2, H * 0.37);
-
-  // ── Main scene text ──
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `800 ${Math.round(H * 0.048)}px sans-serif`;
-  ctx.textAlign = "center";
-  wrapCenter(ctx, scene.texto, W / 2, H * 0.49, W * 0.84, Math.round(H * 0.058));
-
-  // ── Always-visible bottom section ──
-  ctx.globalAlpha = 1;
-
-  // Destination name
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `900 ${Math.round(H * 0.062)}px sans-serif`;
-  ctx.textAlign = "center";
-  ctx.fillText(data.destino.toUpperCase(), W / 2, H * 0.796);
-
-  // Price pill
-  const pillTxt = `${data.precoPorPessoa} / pessoa`;
-  ctx.font = `700 ${Math.round(H * 0.029)}px sans-serif`;
-  const pW = ctx.measureText(pillTxt).width + W * 0.07;
-  const pH = H * 0.052;
-  const pX = (W - pW) / 2;
-  const pY = H * 0.828;
-  ctx.fillStyle = "#00b4c8";
-  rrect(ctx, pX, pY, pW, pH, pH / 2);
-  ctx.fill();
-  ctx.fillStyle = "#003d45";
-  ctx.fillText(pillTxt, W / 2, pY + pH * 0.68);
-
-  // Progress bar
-  const barY = H * 0.925;
-  const barW = W * 0.82;
-  const barH2 = Math.max(2, H * 0.004);
-  const barX = (W - barW) / 2;
-  ctx.fillStyle = "rgba(255,255,255,0.15)";
-  ctx.fillRect(barX, barY, barW, barH2);
-  ctx.fillStyle = "#00b4c8";
-  ctx.fillRect(barX, barY, barW * (t / TOTAL_DURATION), barH2);
-
-  ctx.globalAlpha = 1;
+  if (data.companhiaAerea) {
+    shadow(8);
+    ctx.fillStyle = "rgba(255,255,255,0.80)";
+    ctx.font = `700 ${Math.round(H * 0.020)}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(data.companhiaAerea.toUpperCase(), W / 2, rowY + pPillH + Math.round(H * 0.052));
+    noShadow();
+  }
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -191,20 +273,18 @@ interface VideoGeneratorProps {
 
 const VideoGenerator = ({ data }: VideoGeneratorProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
   const rafRef = useRef<number>(0);
-  const bgImageRef = useRef<HTMLImageElement | null>(null);
+  const bgImagesRef = useRef<(HTMLImageElement | null)[]>([]);
 
   const [status, setStatus] = useState<Status>("idle");
   const [progress, setProgress] = useState(0);
 
-  const { imageEl, loading: imageLoading } = useDestinationImage(data.destino);
+  const { imageEls, loading: imageLoading } = useDestinationImages(data.destino, 5);
 
-  // Keep bgImageRef in sync (refs don't trigger re-renders)
+  // Keep bgImagesRef in sync (refs don't trigger re-renders)
   useEffect(() => {
-    bgImageRef.current = imageEl;
-  }, [imageEl]);
+    bgImagesRef.current = imageEls;
+  }, [imageEls]);
 
   // ── Preview animation loop (idle + done) ──────────────────────────────────
   useEffect(() => {
@@ -220,7 +300,7 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
 
     const loop = (now: number) => {
       const t = ((now - start) / 1000) % TOTAL_DURATION;
-      drawVideoFrame(canvas, data, bgImageRef.current, t);
+      drawVideoFrame(canvas, data, bgImagesRef.current, t);
       raf = requestAnimationFrame(loop);
     };
 
@@ -228,85 +308,77 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
     return () => cancelAnimationFrame(raf);
   }, [status, data]);
 
-  // ── Generate video ────────────────────────────────────────────────────────
-  const handleGenerate = () => {
+  // ── Generate video (MP4 via VideoEncoder + mp4-muxer) ────────────────────
+  const handleGenerate = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Stop preview loop
     cancelAnimationFrame(rafRef.current);
-
-    canvas.width = PW;
-    canvas.height = PH;
-
-    chunksRef.current = [];
     setProgress(0);
     setStatus("generating");
 
-    // High-res offscreen canvas for recording
+    const FPS = 30;
+    const TOTAL_FRAMES = TOTAL_DURATION * FPS;
+
     const offscreen = document.createElement("canvas");
     offscreen.width = VW;
     offscreen.height = VH;
 
-    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-      ? "video/webm;codecs=vp9"
-      : MediaRecorder.isTypeSupported("video/webm;codecs=vp8")
-      ? "video/webm;codecs=vp8"
-      : "video/webm";
+    const muxer = new Muxer({
+      target: new ArrayBufferTarget(),
+      video: { codec: "avc", width: VW, height: VH },
+      fastStart: "in-memory",
+    });
 
-    const stream = offscreen.captureStream(30);
-    const recorder = new MediaRecorder(stream, { mimeType });
-    recorderRef.current = recorder;
+    const encoder = new VideoEncoder({
+      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      error: (e) => console.error("[VideoEncoder]", e),
+    });
 
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data);
-    };
+    encoder.configure({
+      codec: "avc1.640033",
+      width: VW,
+      height: VH,
+      bitrate: 8_000_000,
+      framerate: FPS,
+    });
 
-    recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: "video/webm" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `bwt-${data.destino.toLowerCase().replace(/\s+/g, "-")}-reels.webm`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setStatus("done");
-    };
-
-    recorder.start();
-
-    const DURATION_MS = TOTAL_DURATION * 1000;
-    const start = performance.now();
     let lastProgress = -1;
 
-    const animate = (now: number) => {
-      const elapsed = now - start;
-      const t = Math.min(elapsed / 1000, TOTAL_DURATION);
+    for (let f = 0; f < TOTAL_FRAMES; f++) {
+      const t = f / FPS;
+      drawVideoFrame(canvas, data, bgImagesRef.current, t);
+      drawVideoFrame(offscreen, data, bgImagesRef.current, t);
 
-      // Draw to preview canvas and offscreen recording canvas
-      drawVideoFrame(canvas, data, bgImageRef.current, t);
-      drawVideoFrame(offscreen, data, bgImageRef.current, t);
+      const frame = new VideoFrame(offscreen, { timestamp: Math.round((f / FPS) * 1_000_000) });
+      encoder.encode(frame, { keyFrame: f % (FPS * 2) === 0 });
+      frame.close();
 
-      // Only update React state when the integer percentage changes (avoids 60 re-renders/sec)
-      const pct = Math.min(100, Math.round((elapsed / DURATION_MS) * 100));
+      const pct = Math.min(100, Math.round((f / TOTAL_FRAMES) * 100));
       if (pct !== lastProgress) {
         setProgress(pct);
         lastProgress = pct;
+        // Yield to keep UI responsive every 10 frames
+        if (f % 10 === 0) await new Promise((r) => setTimeout(r, 0));
       }
+    }
 
-      if (elapsed < DURATION_MS) {
-        rafRef.current = requestAnimationFrame(animate);
-      } else {
-        recorder.stop();
-      }
-    };
+    await encoder.flush();
+    muxer.finalize();
 
-    rafRef.current = requestAnimationFrame(animate);
+    const { buffer } = muxer.target;
+    const blob = new Blob([buffer], { type: "video/mp4" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `bwt-${data.destino.toLowerCase().replace(/\s+/g, "-")}-reels.mp4`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatus("done");
   };
 
   const handleCancel = () => {
     cancelAnimationFrame(rafRef.current);
-    recorderRef.current?.stop();
     setStatus("idle");
     setProgress(0);
   };
@@ -320,7 +392,12 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
         {imageLoading && (
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <Loader2 className="w-3 h-3 animate-spin" />
-            Carregando foto...
+            Carregando fotos...
+          </span>
+        )}
+        {!imageLoading && imageEls.length > 0 && (
+          <span className="text-xs text-emerald-600 font-medium">
+            ● {imageEls.filter(Boolean).length} foto{imageEls.filter(Boolean).length !== 1 ? "s" : ""} carregada{imageEls.filter(Boolean).length !== 1 ? "s" : ""}
           </span>
         )}
       </div>
@@ -359,7 +436,7 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
         {status === "idle" && (
           <div className="flex flex-col items-center gap-3">
             <p className="text-sm text-muted-foreground text-center">
-              Vídeo 9:16 · 15s · 1080×1920 px · Reels / TikTok
+              Vídeo 9:16 · 15s · 1080×1920 px · MP4 · Reels / TikTok
             </p>
             <Button
               onClick={handleGenerate}
@@ -398,7 +475,7 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
           <div className="flex flex-col items-center gap-3">
             <p className="flex items-center gap-2 text-sm font-medium text-emerald-600">
               <CheckCircle2 className="w-4 h-4" />
-              Download do .webm concluído!
+              Download do .mp4 concluído!
             </p>
             <div className="flex gap-2">
               <Button

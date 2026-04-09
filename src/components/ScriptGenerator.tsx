@@ -42,7 +42,7 @@ const ScriptGenerator = ({ data }: ScriptGeneratorProps) => {
 ${data.desconto ? `🔥 Até ${data.desconto}% OFF\n` : ""}💰 A partir de ${data.parcelas}x R$ ${data.precoParcela?.replace("R$ ", "")}
 ${data.precoAVista ? `💳 Ou ${data.precoAVista} à vista` : ""}
 ${data.dataInicio && data.dataFim ? `📅 ${data.dataInicio} a ${data.dataFim}` : ""}
-${data.companhiaAerea ? `✈️ ${data.companhiaAerea}` : ""}
+${data.companhiaAerea ? `✈️ ${data.companhiaAerea}${data.origemVoo ? ` · saída de ${data.origemVoo}` : ""}` : ""}
 
 ✅ O que inclui:
 ${(data.inclui || []).map((i) => `  • ${i}`).join("\n")}
@@ -65,7 +65,7 @@ ${data.bagagem ? `🧳 *Bagagem:* ${data.bagagem}\n` : ""}${data.desconto ? `�
 💰 *A partir de:* ${data.parcelas}x R$ ${data.precoParcela?.replace("R$ ", "")} /pessoa
 ${data.precoAVista ? `💳 *À vista:* ${data.precoAVista} /pessoa` : ""}
 ${data.dataInicio && data.dataFim ? `📅 *Datas:* ${data.dataInicio} a ${data.dataFim}` : ""}
-${data.companhiaAerea ? `✈️ *Cia. Aérea:* ${data.companhiaAerea}` : ""}
+${data.companhiaAerea ? `✈️ *Cia. Aérea:* ${data.companhiaAerea}${data.origemVoo ? ` · saída de ${data.origemVoo}` : ""}` : ""}
 
 ✅ *Inclui:*
 ${(data.inclui || []).map((i) => `  • ${i}`).join("\n")}
@@ -77,7 +77,7 @@ _Valores por pessoa em apto duplo. Sujeito a disponibilidade._`;
   const emailScript = useMemo(() => {
     if (data.marketing?.emailScript) return data.marketing.emailScript;
     // Fallback
-    const agencia = data.agencia || "nossa agência";
+    const agencia = data.agencia || "BWT Operadora";
     return `Assunto: ${data.destino} | ${data.duracao} a partir de ${data.parcelas}x R$ ${data.precoParcela?.replace("R$ ", "")} por pessoa
 
 Olá!
@@ -88,7 +88,7 @@ Temos uma oferta especial para ${data.destino} que você não pode perder.
 🏨 HOTEL: ${data.hotel}
 ${data.quartoTipo ? `🛏️ QUARTO: ${data.quartoTipo}\n` : ""}🍽️ REGIME: ${data.regime}
 🌙 DURAÇÃO: ${data.duracao}
-${data.dataInicio && data.dataFim ? `📅 PERÍODO: ${data.dataInicio} a ${data.dataFim}\n` : ""}${data.companhiaAerea ? `✈️ VOO: ${data.companhiaAerea}\n` : ""}${data.bagagem ? `🧳 BAGAGEM: ${data.bagagem}\n` : ""}
+${data.dataInicio && data.dataFim ? `📅 PERÍODO: ${data.dataInicio} a ${data.dataFim}\n` : ""}${data.companhiaAerea ? `✈️ VOO: ${data.companhiaAerea}${data.origemVoo ? ` · saída de ${data.origemVoo}` : ""}\n` : ""}${data.bagagem ? `🧳 BAGAGEM: ${data.bagagem}\n` : ""}
 O QUE ESTÁ INCLUSO:
 ${(data.inclui || []).map((i) => `• ${i}`).join("\n")}
 

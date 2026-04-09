@@ -8,7 +8,7 @@ Analise o texto do orçamento fornecido e retorne EXCLUSIVAMENTE um JSON válido
 
 {
   "travelData": {
-    "destino": "nome da cidade/destino (ex: Fortaleza, Cancún, Punta Cana)",
+    "destino": "cidade onde fica o HOTEL (cidade de hospedagem, NÃO a cidade de origem/embarque). Ex: hotel em Bariloche → 'Bariloche'; hotel em Fortaleza → 'Fortaleza'",
     "hotel": "nome completo do hotel",
     "quartoTipo": "tipo do quarto exatamente como aparece (ex: Quarto Duplo Standard)",
     "regime": "All Inclusive | Café da Manhã | Meia Pensão | Pensão Completa | Room Only",
@@ -19,11 +19,11 @@ Analise o texto do orçamento fornecido e retorne EXCLUSIVAMENTE um JSON válido
     "dataFim": "DD/MM/AAAA",
     "companhiaAerea": "nome da companhia aérea",
     "bagagem": "resumo das bagagens (ex: Sem mala despachada — apenas bagagem de mão | 1 mala de 23kg por pessoa)",
-    "origemVoo": "cidade de origem do primeiro voo de ida",
+    "origemVoo": "cidade e código IATA de ORIGEM do primeiro trecho do voo de ida, no formato 'Cidade (CÓDIGO)'. Ex: PVH → 'Porto Velho (PVH)', GRU → 'São Paulo (GRU)', SSA → 'Salvador (SSA)'. NUNCA coloque o destino aqui.",
     "tipoProduto": "Aéreo + Hotel | Aéreo + Hotel + Transfer | Cruzeiro | Hotel | Pacote",
     "campanha": null,
     "agencia": "nome da agência revendedora (quem emitiu o orçamento)",
-    "inclui": ["item incluído 1", "item incluído 2"],
+    "inclui": ["Aéreo com [cia] em Classe Econômica", "Transfer de chegada e saída", "Seguro Viagem", "X Noites de hospedagem no [hotel]", "All Inclusive (Tudo Incluído)"],
     "desconto": "5"
   },
   "marketing": {
@@ -48,9 +48,10 @@ REGRAS OBRIGATÓRIAS:
 5. O conteúdo de marketing deve referenciar a AGÊNCIA REVENDEDORA como contato, não a BWT diretamente
 6. Contextualize o destino com atrações reais, clima e experiências únicas daquele lugar
 7. Para destinos nacionais brasileiros, adapte o tom (praias nordestinas, gastronomia local, etc.)
-8. O "destino" é SEMPRE a cidade de CHEGADA/HOSPEDAGEM (onde fica o hotel), NUNCA a cidade de origem/embarque do passageiro. Ex: se o voo sai de Porto Velho (PVH) e chega em Fortaleza (FOR), o destino é "Fortaleza".
+8. O "destino" é SEMPRE a cidade onde fica o HOTEL (cidade de hospedagem). Use o endereço ou nome do hotel para confirmar. NUNCA use a cidade de origem/embarque do passageiro. Ex: voo PVH→FOR com hotel em Fortaleza → destino = "Fortaleza". Ex2: voo GRU→BRC com hotel em Bariloche → destino = "Bariloche". Em caso de dúvida, o destino é a cidade mencionada no endereço do hotel.
 9. O nome do hotel deve ser extraído SEM símbolos de estrelas (☆ ★) ou caracteres especiais
-10. Retorne APENAS o JSON puro, sem nenhum texto antes ou depois`;
+10. Retorne APENAS o JSON puro, sem nenhum texto antes ou depois
+11. O "origemVoo" é SEMPRE a cidade de onde o passageiro PARTE, no formato "Cidade (CÓDIGO)". Ex: voo PVH→FOR → "Porto Velho (PVH)". Ex2: voo GRU→SCL → "São Paulo (GRU)". NUNCA deixe null se houver voo.`;
 
 export async function parseWithGemini(
   pdfText: string,
@@ -104,10 +105,10 @@ export async function parseWithGemini(
     const precoAVista = ppRaw > 0 ? formatMoney(ppRaw * (1 - descontoNum)) : precoPorPessoa;
 
     return {
-      destino: String(td.destino ?? "Destino"),
-      hotel: stripStars(String(td.hotel ?? "Hotel")),
-      quartoTipo: td.quartoTipo ? String(td.quartoTipo) : undefined,
-      regime: String(td.regime ?? "Consultar"),
+      destino: cleanText(String(td.destino ?? "Destino")),
+      hotel: cleanText(String(td.hotel ?? "Hotel")),
+      quartoTipo: td.quartoTipo ? cleanText(String(td.quartoTipo)) : undefined,
+      regime: cleanText(String(td.regime ?? "Consultar")),
       precoTotal: String(td.precoTotal ?? "R$ 0,00"),
       numAdultos,
       parcelas,
@@ -115,16 +116,16 @@ export async function parseWithGemini(
       precoParcela,
       precoAVista,
       desconto: String(td.desconto ?? "5"),
-      duracao: String(td.duracao ?? "Consultar"),
+      duracao: cleanText(String(td.duracao ?? "Consultar")),
       dataInicio: td.dataInicio ? String(td.dataInicio) : undefined,
       dataFim: td.dataFim ? String(td.dataFim) : undefined,
-      companhiaAerea: td.companhiaAerea ? String(td.companhiaAerea) : undefined,
-      bagagem: td.bagagem ? String(td.bagagem) : undefined,
-      origemVoo: td.origemVoo ? String(td.origemVoo) : undefined,
-      agencia: td.agencia ? String(td.agencia) : undefined,
-      tipoProduto: String(td.tipoProduto ?? "Pacote"),
-      campanha: td.campanha ? String(td.campanha) : undefined,
-      inclui: Array.isArray(td.inclui) ? (td.inclui as string[]) : [],
+      companhiaAerea: td.companhiaAerea ? cleanText(String(td.companhiaAerea)) : undefined,
+      bagagem: td.bagagem ? cleanText(String(td.bagagem)) : undefined,
+      origemVoo: td.origemVoo ? cleanText(String(td.origemVoo)) : undefined,
+      agencia: td.agencia ? cleanText(String(td.agencia)) : undefined,
+      tipoProduto: cleanText(String(td.tipoProduto ?? "Pacote")),
+      campanha: td.campanha ? cleanText(String(td.campanha)) : undefined,
+      inclui: Array.isArray(td.inclui) ? (td.inclui as string[]).map(cleanText) : [],
       roteiro: [],
       marketing,
     };
@@ -136,12 +137,20 @@ export async function parseWithGemini(
 
 // ─── Utilitários ──────────────────────────────────────────────────────────────
 
-function stripStars(name: string): string {
-  return name
-    .replace(/[\u2605\u2606\u2B50\u26AA\u26AB\u25A0\u25A1\u2B1B\u2B1C]+/g, "")
+/** Remove star/rating symbols and any non-printable junk from a text field */
+function cleanText(text: string): string {
+  return text
+    // All Unicode symbol blocks: Misc Symbols, Dingbats, Enclosed chars, Emoji
+    .replace(/[^\u0020-\u024F\u1E00-\u1EFF]/g, "")
+    // ASCII asterisks used as star ratings (e.g. *** or * * *)
+    .replace(/(\s*\*+)+/g, "")
+    // Multiple spaces → single
     .replace(/\s{2,}/g, " ")
     .trim();
 }
+
+// Keep alias for backwards compat
+function stripStars(name: string): string { return cleanText(name); }
 
 function parseMoneyToNumber(str: string): number {
   const num = parseFloat(str.replace(/[^\d,]/g, "").replace(",", "."));

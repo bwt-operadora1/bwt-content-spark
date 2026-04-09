@@ -43,7 +43,7 @@ export function parseTravelData(text: string): TravelData {
   const adultosMatch = clean.match(/(\d+)\s*Adultos?\b/i);
   const numAdultos = adultosMatch ? parseInt(adultosMatch[1]) : 2;
 
-  // ── Destino ──
+  // ── Destino — derive from hotel address/name first, then airport arrival ──
   const destino = extractDestino(clean, lines);
 
   // ── Hotel ──
@@ -64,11 +64,10 @@ export function parseTravelData(text: string): TravelData {
     ? formatMoney(totalNum / numAdultos)
     : precoTotal;
 
-  // ── Parcelas — must match payment terms, NOT baggage "1x Item Pessoal" ──
-  const parcelasMatch =
-    clean.match(/em\s+até\s+(\d{1,2})\s*[xX]/i) ||
-    clean.match(/(\d{1,2})\s*[xX]\s+(?:iguais|parcelas)/i);
-  const parcelas = parcelasMatch ? parseInt(parcelasMatch[1]) : 10;
+  // ── Parcelas — look only at credit card line, default 10 ──
+  const cartaoMatch = clean.match(/cart[ãa]o[^.]*?(\d{1,2})\s*[xX]/i) ||
+    clean.match(/(\d{1,2})\s*[xX]\s+iguais/i);
+  const parcelas = cartaoMatch ? parseInt(cartaoMatch[1]) : 10;
   const precoParcela = totalNum > 0
     ? formatMoney(totalNum / numAdultos / parcelas)
     : "Consultar";
@@ -105,15 +104,29 @@ export function parseTravelData(text: string): TravelData {
   // ── Roteiro ──
   const roteiro = extractRoteiro(lines);
 
+  // ── Agência ──
+  const agencia = extractAgencia(clean, lines);
+
+  // ── Bagagem ──
+  const bagagem = extractBagagem(clean);
+
+  // ── Origem do voo ──
+  const origemVoo = extractOrigemVoo(clean);
+
   // ── Inclui ──
-  const inclui = extractInclui(lines, hotel, companhiaAerea || "", duracao);
+  const inclui = extractInclui(lines, hotel, companhiaAerea || "", duracao, bagagem);
 
   // ── Tipo de produto ──
-  const tipoProduto = clean.match(/a[ée]reo/i) && clean.match(/hosp|hotel/i)
-    ? "Aéreo + Hotel"
-    : clean.match(/cruzeiro/i)
-      ? "Cruzeiro"
-      : "Pacote";
+  const hasAereo = /a[ée]reo/i.test(clean);
+  const hasHotel = /hosp|hotel/i.test(clean);
+  const hasTransfer = /transfer|traslado/i.test(clean);
+  const tipoProduto = hasAereo && hasHotel && hasTransfer
+    ? "Aéreo + Hotel + Transfer"
+    : hasAereo && hasHotel
+      ? "Aéreo + Hotel"
+      : clean.match(/cruzeiro/i)
+        ? "Cruzeiro"
+        : "Pacote";
 
   return {
     destino,
@@ -132,6 +145,9 @@ export function parseTravelData(text: string): TravelData {
     dataInicio,
     dataFim,
     companhiaAerea: companhiaAerea || undefined,
+    bagagem: bagagem || undefined,
+    origemVoo: origemVoo || undefined,
+    agencia: agencia || undefined,
     inclui: inclui.length > 0 ? inclui : ["Consultar itens inclusos"],
     tipoProduto,
     campanha: campanha || undefined,
@@ -145,10 +161,18 @@ function extractDestino(clean: string, lines: string[]): string {
   const opMatch = clean.match(/Operação\s+[\w\s]+[-–]\s*([A-ZÀ-Úa-zà-ú][\w\s]*?)(?:\s+Nº|\s*$)/i);
   if (opMatch) return normalizeDestino(opMatch[1].trim());
 
-  // Pattern 2: Known destination names — compound/specific names MUST come before
-  // short/ambiguous ones (e.g. "Porto Velho" before "Porto", "Foz do Iguaçu" before "Foz")
+  // Pattern 2: Airport arrival codes — most reliable, derived from last arrival in Ida section
+  // Run BEFORE knownDests so origin cities (GRU=São Paulo, PVH=Porto Velho) are never picked
+  const airportDest = extractDestinationFromAirport(clean);
+  if (airportDest) return airportDest;
+
+  // Pattern 3: Known destination names found in hotel address/name context only
+  // Restrict search to the hotel block (after "Hospedagem") to avoid matching origin cities
+  const hotelBlock = (() => {
+    const idx = clean.search(/hospedagem/i);
+    return idx >= 0 ? clean.slice(idx, idx + 600) : "";
+  })();
   const knownDests = [
-    // Brasil — specific first
     "Fortaleza", "Jericoacoara", "Fernando de Noronha",
     "Porto Seguro", "Porto Velho", "Porto Alegre",
     "Foz do Iguaçu", "Foz do Iguacu",
@@ -158,23 +182,19 @@ function extractDestino(clean: string, lines: string[]): string {
     "Porto de Galinhas", "Morro de São Paulo",
     "Gramado", "Canela", "Bonito",
     "Manaus", "Belém", "Brasília", "Curitiba",
-    // Internacional — specific first
     "Punta Cana", "Riviera Maya", "Playa del Carmen", "Costa Mujeres",
-    "Buenos Aires", "New York", "Los Angeles", "Las Vegas",
+    "Buenos Aires", "Bariloche", "Mendoza", "Córdoba",
+    "New York", "Los Angeles", "Las Vegas",
     "Cancún", "Cancun", "Orlando", "Miami",
-    "Lisboa", "Porto",  // "Porto" after "Porto Velho" / "Porto Seguro"
+    "Lisboa", "Porto",
     "Paris", "Roma", "Londres", "Madrid", "Barcelona", "Amsterdã",
     "Maldivas", "Dubai", "Bangkok", "Tóquio", "Bali",
-    "Santiago", "Cartagena", "Bariloche", "Cusco", "Tulum",
+    "Santiago", "Cartagena", "Cusco", "Tulum",
     "Aruba", "Curaçao", "Curacao",
   ];
   for (const dest of knownDests) {
-    if (clean.includes(dest)) return normalizeDestino(dest);
+    if (hotelBlock.includes(dest)) return normalizeDestino(dest);
   }
-
-  // Pattern 3: Airport codes
-  const airportDest = extractDestinationFromAirport(clean);
-  if (airportDest) return airportDest;
 
   // Pattern 4: "destino: X"
   const destMatch = clean.match(/destino[:\s]+([A-ZÀ-Ú][\w\s]+?)(?=[,;.\n])/i);
@@ -184,15 +204,27 @@ function extractDestino(clean: string, lines: string[]): string {
 }
 
 function extractHotel(clean: string, lines: string[]): string {
-  // Pattern 1: Line after "Hospedagem Total" section — Infotera format
+  // Pattern 1: Infotera format — hotel name is the first substantive line after
+  // the "Hospedagem" section header. "Hospedagem" and "Total" may be on separate
+  // lines due to left/right PDF layout, so we find any "Hospedagem" section header
+  // (not a reference to room-only or baggage) and scan subsequent lines.
+  const HOTEL_SKIP = /^(total|check|noites|hóspedes|adultos|serviços|aéreo|incluso|datas|valores|powered|telefone|rua |av\. |bairro|\d+x\s*|\(|\d{2}\s)/i;
   for (let i = 0; i < lines.length; i++) {
-    if (/hospedagem\s+total/i.test(lines[i])) {
-      // Next non-empty line that's not a table header
-      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-        const line = lines[j];
-        if (line.length > 5 && !/check|noites|hóspedes|adultos|\|/i.test(line)) {
-          return cleanHotelName(line);
-        }
+    const line = lines[i];
+    if (/hospedagem/i.test(line) && !/serviços|aéreo|sem\s+mala|quarto|check/i.test(line)) {
+      // Confirm this is the hotel section (not the "Incluso" checklist) by
+      // requiring "Total" to appear in the next 2 lines (Infotera always shows
+      // "Hospedagem  Total ( N Adultos )" — possibly split across lines)
+      const nearby = lines.slice(i, i + 3).join(" ");
+      if (!/total/i.test(nearby)) continue;
+      // Also accept the very next line being "Total ( N Adultos )" — skip it
+      for (let j = i + 1; j < Math.min(i + 8, lines.length); j++) {
+        const candidate = lines[j];
+        if (candidate.length < 4) continue;
+        if (/total\s*\(/i.test(candidate)) continue;      // "Total ( 2 Adultos )"
+        if (HOTEL_SKIP.test(candidate)) continue;
+        if (/@|financeiro|telefone/i.test(candidate)) break; // hit agency info block
+        return cleanHotelName(candidate);
       }
     }
   }
@@ -203,12 +235,19 @@ function extractHotel(clean: string, lines: string[]): string {
   );
   if (brandMatch) return cleanHotelName(brandMatch[1]);
 
-  // Pattern 3: "hotel: X"
-  const hotelMatch = clean.match(/hotel[:\s]+([^\n,;.]+)/i);
+  // Pattern 3: Standalone "Hotel XYZ" line (hotel name starts with "Hotel")
+  for (const line of lines) {
+    if (/^Hotel\s+\w/i.test(line) && line.length > 8 && !/Total|Telefone|^Hotel\s*$/.test(line)) {
+      return cleanHotelName(line);
+    }
+  }
+
+  // Pattern 4: "hotel: X" or inline mention
+  const hotelMatch = clean.match(/hotel[:\s]+([A-ZÀ-Ú][\w\s,]+?)(?:\s*[-–,;.]|\s+(?:Check|Suite|Tudo|All|\d{2}\/\d{2}))/i);
   if (hotelMatch) return cleanHotelName(hotelMatch[1]);
 
-  // Pattern 4: "Resort" or "Hotel" in name
-  const resortMatch = clean.match(/([\w\s]+(?:Resort|Hotel|Palace|Suites|Lodge|Beach|Bay|Club|Grand|Plaza|Royal)[\w\s]*?)(?:\s*[-–,;.]|\s+(?:Check|Suite|Tudo|All|\d))/i);
+  // Pattern 5: Resort/Palace/Suites etc. in name
+  const resortMatch = clean.match(/((?:[\w\s]+\s)?(?:Resort|Palace|Suites|Lodge|Beach|Bay|Club|Grand|Plaza|Royal)[\w\s]*?)(?:\s*[-–,;.]|\s+(?:Check|Suite|Tudo|All|\d))/i);
   if (resortMatch) return cleanHotelName(resortMatch[1]);
 
   return "Hotel";
@@ -320,44 +359,105 @@ function extractRoteiro(lines: string[]): string[] {
   return roteiro.slice(0, 8);
 }
 
-function extractInclui(lines: string[], hotel: string, cia: string, duracao: string): string[] {
+function extractAgencia(clean: string, lines: string[]): string | undefined {
+  // Pattern 1: "Powered by infotera [AGÊNCIA] - Orcamento:" — most reliable
+  const poweredBy = clean.match(/Powered\s+by\s+infotera\s+([\w\sÀ-ú&.,'-]+?)\s*[-–]\s*Orcamento/i);
+  if (poweredBy) return poweredBy[1].trim();
+
+  // Pattern 2: Agency name in header — look for travel-agency-looking lines in first 25 lines
+  for (let i = 0; i < Math.min(25, lines.length); i++) {
+    const line = lines[i].trim();
+    if (
+      line.length > 4 && line.length < 70 &&
+      /viagens?|turismo|travel|tours?|agência|agencia|receptivo/i.test(line) &&
+      !/@|Telefone|BWT|infotera|Orcamento/i.test(line)
+    ) {
+      return line;
+    }
+  }
+  return undefined;
+}
+
+function extractBagagem(clean: string): string | undefined {
+  const re = /(\d+)x\s*Mala\s*despachada/gi;
+  const counts: number[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(clean)) !== null) counts.push(parseInt(m[1], 10));
+  if (counts.length === 0) return undefined;
+  if (counts.every(n => n === 0)) return "Sem mala despachada — apenas bagagem de mão";
+  const max = Math.max(...counts);
+  return max > 0 ? `${max} mala(s) despachada(s) por pessoa` : undefined;
+}
+
+function extractOrigemVoo(clean: string): string | undefined {
+  // Find the first time-code pattern in the "Ida" section: "HH:MM CODE"
+  const idaSection = clean.match(/\bIda\b([\s\S]{0,600}?)(?:\bVolta\b|$)/i);
+  if (idaSection) {
+    const timeCode = idaSection[1].match(/\d{1,2}:\d{2}\s+([A-Z]{3})\b/);
+    if (timeCode) {
+      const code = timeCode[1];
+      const city = airportCodeToCity(code);
+      if (city) return `${city} (${code})`;
+    }
+  }
+  return undefined;
+}
+
+function extractInclui(lines: string[], hotel: string, cia: string, duracao: string, bagagem?: string): string[] {
   const inclui: string[] = [];
 
-  // Try to build from what we know
-  if (cia) inclui.push(`Aéreo com ${cia} em Classe Econômica`);
+  if (cia) {
+    const bagNote = bagagem && /sem mala despachada/i.test(bagagem) ? " (sem mala despachada)" : "";
+    inclui.push(`Aéreo com ${cia} em Classe Econômica${bagNote}`);
+  }
 
-  // Look for "Transfer" mentions
-  if (lines.some((l) => /transfer/i.test(l))) {
+  if (lines.some((l) => /transfer|traslado/i.test(l))) {
     inclui.push("Transfer de chegada e saída");
   }
 
-  // Look for "Seguro" mentions
   const seguroLine = lines.find((l) => /seguro/i.test(l) && l.length > 10 && l.length < 120);
-  if (seguroLine) {
-    inclui.push("Seguro Viagem");
-  }
+  if (seguroLine) inclui.push("Seguro Viagem");
 
-  // Hotel + duration
-  if (hotel !== "Hotel") {
-    inclui.push(`${duracao} de hospedagem no ${hotel}`);
-  }
+  if (hotel !== "Hotel") inclui.push(`${duracao} de hospedagem no ${hotel}`);
 
-  // Regime
   if (lines.some((l) => /tudo\s*inclu[ií]do|all\s*inclusive/i.test(l))) {
     inclui.push("All Inclusive (Tudo Incluído)");
+  } else if (lines.some((l) => /caf[ée]\s*da\s*manh[ãa]/i.test(l))) {
+    inclui.push("Café da manhã");
   }
 
   return inclui;
 }
 
+function airportCodeToCity(code: string): string | undefined {
+  const map: Record<string, string> = {
+    FOR: "Fortaleza", NAT: "Natal", SSA: "Salvador", REC: "Recife",
+    MCZ: "Maceió", GIG: "Rio de Janeiro", GRU: "São Paulo", CGH: "São Paulo",
+    FLN: "Florianópolis", IGU: "Foz do Iguaçu", PVH: "Porto Velho",
+    BSB: "Brasília", MAO: "Manaus", BEL: "Belém", CWB: "Curitiba",
+    POA: "Porto Alegre", VCP: "Campinas", JPA: "João Pessoa",
+    PUJ: "Punta Cana", CUN: "Cancún", MCO: "Orlando", MIA: "Miami",
+    LIS: "Lisboa", CDG: "Paris", FCO: "Roma", DXB: "Dubai",
+    MLE: "Maldivas", SCL: "Santiago", EZE: "Buenos Aires",
+    CTG: "Cartagena", CUZ: "Cusco", AUA: "Aruba", CUR: "Curaçao",
+    JFK: "New York", LAX: "Los Angeles", LAS: "Las Vegas",
+    LHR: "Londres", MAD: "Madrid", BCN: "Barcelona",
+  };
+  return map[code];
+}
+
 // ─── Utilities ───
 
-/** Strips star/rating symbols and excess whitespace from hotel names */
+/** Strips star/rating symbols and non-printable characters from hotel names */
 function cleanHotelName(name: string): string {
   return name
-    .replace(/[\u2605\u2606\u2B50\u26AA\u26AB\u25A0\u25A1\u2B1B\u2B1C]+/g, "") // ★☆⭐⬜□■ etc.
-    .replace(/\s{2,}/g, " ")
+    // All Unicode symbol/emoji blocks
+    .replace(/[^\u0020-\u024F\u1E00-\u1EFF]/g, "")
+    // ASCII asterisks used as ratings
+    .replace(/(\s*\*+)+/g, "")
+    // Trailing punctuation and excess whitespace
     .replace(/[,;.]+$/, "")
+    .replace(/\s{2,}/g, " ")
     .trim();
 }
 
@@ -371,25 +471,33 @@ function extractField(text: string, patterns: RegExp[]): string | undefined {
 
 function extractDestinationFromAirport(text: string): string | undefined {
   const airportMap: Record<string, string> = {
-    // Brasil
     FOR: "Fortaleza", NAT: "Natal", SSA: "Salvador", REC: "Recife",
     MCZ: "Maceió", GIG: "Rio de Janeiro", GRU: "São Paulo", CGH: "São Paulo",
     FLN: "Florianópolis", IGU: "Foz do Iguaçu", PVH: "Porto Velho",
     BSB: "Brasília", MAO: "Manaus", BEL: "Belém", CWB: "Curitiba",
     POA: "Porto Alegre", VCP: "Campinas", JPA: "João Pessoa",
-    // Internacional
     PUJ: "Punta Cana", CUN: "Cancún", MCO: "Orlando", MIA: "Miami",
     LIS: "Lisboa", CDG: "Paris", FCO: "Roma", DXB: "Dubai",
     MLE: "Maldivas", SCL: "Santiago", EZE: "Buenos Aires",
     CTG: "Cartagena", CUZ: "Cusco", AUA: "Aruba", CUR: "Curaçao",
+    BRC: "Bariloche", MDZ: "Mendoza", COR: "Córdoba",
     SXM: "St. Maarten", JFK: "New York", LAX: "Los Angeles",
     LAS: "Las Vegas", LHR: "Londres", MAD: "Madrid", BCN: "Barcelona",
     BKK: "Bangkok", NRT: "Tóquio", DPS: "Bali",
   };
-  for (const [code, city] of Object.entries(airportMap)) {
-    // Match airport codes that appear as standalone (e.g., "CUN" not inside a word)
-    if (new RegExp(`\\b${code}\\b`).test(text)) return city;
+
+  // Extract only the "Ida" section (before "Volta") to avoid picking up origin
+  const idaSection = text.match(/\bIda\b([\s\S]*?)(?:\bVolta\b)/i)?.[1] ?? text;
+
+  // Find all "HH:MM CODE" patterns in the Ida section — last arrival is the destination
+  const timeCodeRe = /\d{1,2}:\d{2}\s+([A-Z]{3})\b/g;
+  let last: string | undefined;
+  let m: RegExpExecArray | null;
+  while ((m = timeCodeRe.exec(idaSection)) !== null) {
+    if (airportMap[m[1]]) last = m[1];
   }
+  if (last) return airportMap[last];
+
   return undefined;
 }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchDestinationImage } from "@/lib/imageSearch";
+import { fetchDestinationImage, fetchDestinationImages } from "@/lib/imageSearch";
 import { getDestinationContext } from "@/lib/destinationContext";
 
 /**
@@ -46,4 +46,50 @@ export function useDestinationImage(destino: string) {
   }, [destino]);
 
   return { imageEl, loading };
+}
+
+/**
+ * Loads multiple destination photos as HTMLImageElement[] ready for canvas drawing.
+ */
+export function useDestinationImages(destino: string, count: number = 3) {
+  const [imageEls, setImageEls] = useState<(HTMLImageElement | null)[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setImageEls([]);
+
+    const ctx = getDestinationContext(destino);
+
+    fetchDestinationImages(ctx.imageKeyword, count)
+      .then((urls) => {
+        if (cancelled) return;
+        const loadPromises = urls.map(
+          (url) =>
+            new Promise<HTMLImageElement | null>((resolve) => {
+              const img = new Image();
+              img.crossOrigin = "anonymous";
+              img.onload = () => resolve(img);
+              img.onerror = () => resolve(null);
+              img.src = url;
+            })
+        );
+        Promise.all(loadPromises).then((imgs) => {
+          if (!cancelled) {
+            setImageEls(imgs);
+            setLoading(false);
+          }
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [destino, count]);
+
+  return { imageEls, loading };
 }

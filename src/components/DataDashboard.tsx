@@ -14,6 +14,7 @@ import {
 import { TravelData } from "@/types/travel";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface DataDashboardProps {
   data: TravelData;
@@ -27,10 +28,25 @@ const FIELDS = [
   { key: "duracao" as const, label: "Duração", icon: Moon },
   { key: "regime" as const, label: "Regime", icon: UtensilsCrossed },
   { key: "companhiaAerea" as const, label: "Cia. Aérea", icon: Plane },
+  { key: "origemVoo" as const, label: "Saída de", icon: Plane },
   { key: "tipoProduto" as const, label: "Tipo", icon: Plane },
   { key: "campanha" as const, label: "Campanha", icon: Calendar },
   { key: "desconto" as const, label: "Desconto %", icon: Percent },
 ];
+
+/** Strip Unicode symbols/emoji and ASCII asterisks from text fields */
+function cleanField(value: string): string {
+  return value
+    .replace(/[\u2600-\u27BF\u2900-\u2BFF\u{1F000}-\u{1FFFF}\uFE00-\uFE0F]+/gu, "")
+    .replace(/(\s*\*+)+/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+const TEXT_FIELDS = new Set<keyof TravelData>([
+  "destino", "hotel", "quartoTipo", "regime", "duracao",
+  "companhiaAerea", "bagagem", "tipoProduto", "campanha", "agencia",
+]);
 
 const DataDashboard = ({ data, onChange }: DataDashboardProps) => {
   const updateField = (key: keyof TravelData, value: string) => {
@@ -96,26 +112,48 @@ const DataDashboard = ({ data, onChange }: DataDashboardProps) => {
         ))}
       </div>
 
+      {/* Bloqueio Aéreo */}
+      <div className="glass-card rounded-lg p-2.5 flex items-center gap-3">
+        <Checkbox
+          id="bloqueioAereo"
+          checked={!!data.bloqueioAereo}
+          onCheckedChange={(checked) => onChange({ ...data, bloqueioAereo: !!checked })}
+        />
+        <label htmlFor="bloqueioAereo" className="text-sm font-semibold cursor-pointer select-none">
+          Bloqueio Aéreo
+        </label>
+      </div>
+
       {/* Precificação */}
       <div className="glass-card rounded-lg p-3 space-y-2">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
           <DollarSign className="w-3.5 h-3.5" /> Precificação
         </p>
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { key: "precoTotal" as const, label: `Total ${data.numAdultos || 2} pax` },
-            { key: "parcelas" as const, label: "Parcelas" },
-            { key: "numAdultos" as const, label: "Nº Adultos" },
-          ].map(({ key, label }) => (
-            <div key={key}>
-              <label className="text-xs text-muted-foreground">{label}</label>
-              <Input
-                value={String(data[key] || "")}
-                onChange={(e) => updateField(key, e.target.value)}
-                className="h-7 text-sm font-semibold mt-0.5"
-              />
-            </div>
-          ))}
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <label className="text-xs text-muted-foreground">Total {data.numAdultos || 2} pax</label>
+            <Input
+              value={String(data.precoTotal || "")}
+              onChange={(e) => updateField("precoTotal", e.target.value)}
+              className="h-7 text-sm font-semibold mt-0.5"
+            />
+          </div>
+          <div className="w-14">
+            <label className="text-xs text-muted-foreground">Parcelas</label>
+            <Input
+              value={String(data.parcelas || "")}
+              onChange={(e) => updateField("parcelas", e.target.value)}
+              className="h-7 text-sm font-semibold mt-0.5 text-center"
+            />
+          </div>
+          <div className="w-14">
+            <label className="text-xs text-muted-foreground">Adultos</label>
+            <Input
+              value={String(data.numAdultos || "")}
+              onChange={(e) => updateField("numAdultos", e.target.value)}
+              className="h-7 text-sm font-semibold mt-0.5 text-center"
+            />
+          </div>
         </div>
         <div
           className="rounded-lg p-2 text-xs space-y-0.5"
