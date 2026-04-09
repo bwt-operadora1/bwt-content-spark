@@ -15,16 +15,21 @@ const PdfUpload = ({ onDataExtracted }: PdfUploadProps) => {
   const [fileName, setFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Restaurar sessão anterior do localStorage
+  // Restaurar sessão anterior do localStorage (apenas se o usuário não clicou em "Novo Upload")
   useEffect(() => {
     try {
       const saved = localStorage.getItem("bwt-session");
       if (saved) {
         const data = JSON.parse(saved) as TravelData;
-        onDataExtracted(data);
+        // Verifica se os dados têm campos mínimos válidos antes de restaurar
+        if (data.destino && data.destino !== "Destino" && data.hotel && data.hotel !== "Hotel") {
+          onDataExtracted(data);
+        } else {
+          localStorage.removeItem("bwt-session");
+        }
       }
     } catch {
-      // sessão inválida — ignora
+      localStorage.removeItem("bwt-session");
     }
   }, []);
 
