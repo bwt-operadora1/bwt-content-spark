@@ -1,4 +1,3 @@
-import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Fetches a destination photo URL via the search-images edge function.
@@ -15,6 +14,7 @@ export async function fetchDestinationImage(keyword: string): Promise<string | n
  */
 export async function fetchDestinationImages(keyword: string, count: number = 3): Promise<string[]> {
   try {
+    const { supabase } = await import("@/integrations/supabase/client");
     const { data, error } = await supabase.functions.invoke("search-images", {
       body: { keyword, count },
     });
