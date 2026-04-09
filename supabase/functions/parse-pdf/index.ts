@@ -79,7 +79,7 @@ serve(async (req) => {
     }
 
     const response = await fetch(
-      "https://ai-gateway.lovable.dev/v1/chat/completions",
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
       {
         method: "POST",
         headers: {
@@ -114,7 +114,7 @@ serve(async (req) => {
     }
 
     const result = await response.json();
-    const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const rawText = result.choices?.[0]?.message?.content ?? "";
 
     const jsonText = rawText
       .replace(/^```(?:json)?\s*/i, "")
