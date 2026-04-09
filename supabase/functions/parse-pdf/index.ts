@@ -114,7 +114,7 @@ serve(async (req) => {
     }
 
     const result = await response.json();
-    const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const rawText = result.choices?.[0]?.message?.content ?? "";
 
     const jsonText = rawText
       .replace(/^```(?:json)?\s*/i, "")
