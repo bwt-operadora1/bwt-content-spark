@@ -160,7 +160,7 @@ const DataDashboard = ({ data, onChange }: DataDashboardProps) => {
         className="rounded-xl overflow-hidden"
         style={{
           border: "1px solid hsl(var(--border)/0.5)",
-          borderLeft: "4px solid hsl(var(--bwt-gold))",
+          borderLeft: "3px solid hsl(var(--bwt-gold))",
           background: "hsl(var(--card)/0.9)",
         }}
       >
@@ -170,53 +170,59 @@ const DataDashboard = ({ data, onChange }: DataDashboardProps) => {
           </span>
         </div>
         <div className="px-3 pb-3 space-y-3">
-          {/* Inputs row */}
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <label className="label-caps block mb-1">Total {data.numAdultos || 2} pax</label>
+
+          {/* Inputs: total ocupa linha inteira, parcelas + pax lado a lado abaixo */}
+          <div className="space-y-2">
+            <div>
+              <label className="label-caps block mb-1">Total ({data.numAdultos || 2} pax)</label>
               <Input
                 value={String(data.precoTotal || "")}
                 onChange={(e) => updateField("precoTotal", e.target.value)}
-                className="h-8 text-sm font-semibold"
+                className="h-9 text-sm font-bold"
               />
             </div>
-            <div className="w-14">
-              <label className="label-caps block mb-1 text-center">Parcelas</label>
-              <Input
-                value={String(data.parcelas || "")}
-                onChange={(e) => updateField("parcelas", e.target.value)}
-                className="h-8 text-sm font-semibold text-center"
-              />
-            </div>
-            <div className="w-14">
-              <label className="label-caps block mb-1 text-center">Pax</label>
-              <Input
-                value={String(data.numAdultos || "")}
-                onChange={(e) => updateField("numAdultos", e.target.value)}
-                className="h-8 text-sm font-semibold text-center"
-              />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="label-caps block mb-1">Parcelas</label>
+                <Input
+                  value={String(data.parcelas || "")}
+                  onChange={(e) => updateField("parcelas", e.target.value)}
+                  className="h-8 text-sm font-semibold text-center"
+                />
+              </div>
+              <div>
+                <label className="label-caps block mb-1">Adultos</label>
+                <Input
+                  value={String(data.numAdultos || "")}
+                  onChange={(e) => updateField("numAdultos", e.target.value)}
+                  className="h-8 text-sm font-semibold text-center"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Calculated stats */}
-          <div className="grid grid-cols-3 gap-2">
+          {/* Calculated stats — lista vertical, sem quebra de texto */}
+          <div
+            className="rounded-lg divide-y"
+            style={{
+              background: "rgba(147,51,234,0.05)",
+              border: "0.5px solid rgba(147,51,234,0.12)",
+              divideColor: "rgba(147,51,234,0.08)",
+            }}
+          >
             {[
               { label: "Por pessoa", value: data.precoPorPessoa, highlight: true },
               { label: `Parcela (${data.parcelas}x)`, value: data.precoParcela, highlight: false },
               { label: `À vista (${data.desconto || 5}% off)`, value: data.precoAVista, highlight: false },
             ].map(({ label, value, highlight }) => (
-              <div
-                key={label}
-                className="rounded-lg p-2 text-center"
-                style={{ background: "rgba(147,51,234,0.06)", border: "0.5px solid rgba(147,51,234,0.15)" }}
-              >
-                <p className="label-caps mb-1" style={{ fontSize: 9 }}>{label}</p>
-                <p
-                  className="text-xs font-bold leading-tight"
+              <div key={label} className="flex items-center justify-between px-3 py-2">
+                <span className="text-xs text-muted-foreground">{label}</span>
+                <span
+                  className="text-sm font-bold tabular-nums"
                   style={{ color: highlight ? "#9333EA" : "hsl(var(--foreground))" }}
                 >
                   {value || "—"}
-                </p>
+                </span>
               </div>
             ))}
           </div>
