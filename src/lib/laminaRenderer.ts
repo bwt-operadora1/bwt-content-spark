@@ -703,22 +703,25 @@ export function drawFeed(
       const bx = bodyX + es.dx, by = bodyY + es.dy;
       const color = es.color || "#ffffff";
       ctx.fillStyle = color;
-      let fs = Math.round(H * 0.082 * sc);
+      // Proactively reduce font for longer destination names
+      const nameLen = data.destino.length;
+      const baseFrac = nameLen > 12 ? 0.050 : nameLen > 9 ? 0.060 : 0.082;
+      let fs = Math.round(H * baseFrac * sc);
       ctx.font = `800 ${fs}px 'Barlow Condensed', sans-serif`;
       while (ctx.measureText(data.destino.toUpperCase()).width > W * 0.58 && fs > 22) {
         fs -= 2; ctx.font = `800 ${fs}px 'Barlow Condensed', sans-serif`;
       }
       ctx.textAlign = "left";
       ctx.fillText(data.destino.toUpperCase(), bx, by + fs);
-      const subY = by + fs + Math.round(H * 0.018);
+      const subY = by + fs + Math.round(H * 0.016);
       ctx.fillStyle = "#94a3b8"; ctx.font = `${Math.round(H * 0.014 * sc)}px sans-serif`;
       const hotelClean = sanitize(data.hotel);
       const hotelShort = hotelClean.length > 32 ? hotelClean.substring(0, 32) + "\u2026" : hotelClean;
       ctx.fillText(`${hotelShort}  \u00B7  ${data.duracao}  \u00B7  ${data.regime}`, bx, subY);
-      const totalH = fs + Math.round(H * 0.018) + Math.round(H * 0.018);
+      const totalH = fs + Math.round(H * 0.016) + Math.round(H * 0.018);
       hits.push({ key: "destination", label: "Destino", x: bx, y: by, w: W * 0.60, h: totalH });
       highlightIfNeeded(ctx, { x: bx, y: by, w: W * 0.60, h: totalH }, "destination", "Destino", W, opts);
-      const sepY = subY + Math.round(H * 0.016);
+      const sepY = subY + Math.round(H * 0.014);
       ctx.strokeStyle = "rgba(167,139,250,0.28)"; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(bx, sepY); ctx.lineTo(px2, sepY); ctx.stroke();
     }
@@ -729,7 +732,9 @@ export function drawFeed(
     if (es.visible) {
       const sc = es.fontSizeScale;
       const destEs = getStyle(st, "destination");
-      let fs2 = Math.round(H * 0.082 * destEs.fontSizeScale);
+      const nameLen2 = data.destino.length;
+      const baseFrac2 = nameLen2 > 12 ? 0.050 : nameLen2 > 9 ? 0.060 : 0.082;
+      let fs2 = Math.round(H * baseFrac2 * destEs.fontSizeScale);
       const tmpCtx = document.createElement("canvas").getContext("2d")!;
       tmpCtx.font = `800 ${fs2}px 'Barlow Condensed', sans-serif`;
       while (tmpCtx.measureText(data.destino.toUpperCase()).width > W * 0.58 && fs2 > 22) fs2 -= 2;
@@ -761,29 +766,33 @@ export function drawFeed(
     }
   }
 
-  // Price
+  // Price — right-aligned column, vertically centered to match destination block
   { const es = getStyle(st, "price");
     if (es.visible) {
       const sc = es.fontSizeScale;
-      let py2 = bodyY + Math.round(H * 0.014) + es.dy;
+      // Price starts at bodyY — "R$" baseline aligns with destination name baseline
+      let py2 = bodyY + es.dy;
       const prx = px2 + es.dx;
       const priceStartY = py2;
       const accent = es.color || "#a78bfa";
       ctx.textAlign = "right";
-      ctx.fillStyle = "#94a3b8"; ctx.font = `${Math.round(H * 0.014 * sc)}px sans-serif`;
-      ctx.fillText("A PARTIR DE", prx, py2); py2 += Math.round(H * 0.040 * sc);
-      ctx.fillStyle = accent; ctx.font = `900 ${Math.round(H * 0.040 * sc)}px sans-serif`;
-      ctx.fillText(`${data.parcelas}x`, prx, py2); py2 += Math.round(H * 0.054 * sc);
-      ctx.fillStyle = "#fff"; ctx.font = `900 ${Math.round(H * 0.052 * sc)}px sans-serif`;
-      ctx.fillText(`R$ ${data.precoParcela.replace("R$ ", "")}`, prx, py2); py2 += Math.round(H * 0.028 * sc);
+      // "A PARTIR DE" label — tight spacing to keep block high
+      ctx.fillStyle = "#94a3b8"; ctx.font = `600 ${Math.round(H * 0.013 * sc)}px sans-serif`;
+      ctx.fillText("A PARTIR DE", prx, py2); py2 += Math.round(H * 0.022 * sc);
+      // Parcelas Nx
+      ctx.fillStyle = accent; ctx.font = `900 ${Math.round(H * 0.038 * sc)}px sans-serif`;
+      ctx.fillText(`${data.parcelas}x`, prx, py2); py2 += Math.round(H * 0.046 * sc);
+      // Main price
+      ctx.fillStyle = "#fff"; ctx.font = `900 ${Math.round(H * 0.048 * sc)}px sans-serif`;
+      ctx.fillText(`R$ ${data.precoParcela.replace("R$ ", "")}`, prx, py2); py2 += Math.round(H * 0.022 * sc);
       if (data.precoAVista) {
-        ctx.fillStyle = "#e2e8f0"; ctx.font = `600 ${Math.round(H * 0.015 * sc)}px sans-serif`;
-        ctx.fillText(`Ou ${data.precoAVista}`, prx, py2); py2 += Math.round(H * 0.020 * sc);
+        ctx.fillStyle = "#e2e8f0"; ctx.font = `600 ${Math.round(H * 0.014 * sc)}px sans-serif`;
+        ctx.fillText(`Ou ${data.precoAVista}`, prx, py2); py2 += Math.round(H * 0.018 * sc);
       }
       ctx.fillStyle = "#94a3b8"; ctx.font = `${Math.round(H * 0.013 * sc)}px sans-serif`;
       ctx.fillText("por pessoa em apto duplo", prx, py2);
-      py2 += Math.round(H * 0.016);
-      const bounds = { x: prx - W * 0.44, y: priceStartY - Math.round(H * 0.016), w: W * 0.44, h: py2 - priceStartY + Math.round(H * 0.016) };
+      py2 += Math.round(H * 0.014);
+      const bounds = { x: prx - W * 0.44, y: priceStartY - Math.round(H * 0.014), w: W * 0.44, h: py2 - priceStartY + Math.round(H * 0.014) };
       hits.push({ key: "price", label: "Preço", ...bounds });
       highlightIfNeeded(ctx, bounds, "price", "Preço", W, opts);
     }
