@@ -32,7 +32,17 @@ export async function extractTextFromPdf(file: File): Promise<string> {
   return fullText;
 }
 
+export function validateBwtDocument(text: string): void {
+  if (!/BWT\s+OPERADORA/i.test(text)) {
+    throw new Error(
+      "Este PDF não é um orçamento da BWT Operadora. Apenas orçamentos emitidos pela BWT Operadora são aceitos."
+    );
+  }
+}
+
 export function parseTravelData(text: string): TravelData {
+  validateBwtDocument(text);
+
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
   const clean = lines.join(" ");
   const lineText = lines.join("\n");
@@ -902,7 +912,7 @@ function normalizeDestino(d: string): string {
     paris: "Paris",
     nice: "Nice",
     rome: "Roma", roma: "Roma",
-    milan: "Milão", "milan": "Milão",
+    milan: "Milão",
     venice: "Veneza", venezia: "Veneza",
     florence: "Florença", firenze: "Florença",
     naples: "Nápoles", napoli: "Nápoles",

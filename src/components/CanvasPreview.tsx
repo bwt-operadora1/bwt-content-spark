@@ -3,7 +3,7 @@ import { useRef, useEffect, useState } from "react";
 import { TravelData } from "@/types/travel";
 import { Button } from "@/components/ui/button";
 import { useDestinationImage } from "@/hooks/useDestinationImage";
-import { drawFeed, drawStory, LaminaState, DEFAULT_LAMINA_STATE, scaleLaminaState } from "@/lib/laminaRenderer";
+import { drawFeed, drawStory, LaminaState, DEFAULT_LAMINA_STATE } from "@/lib/laminaRenderer";
 import LaminaEditor from "./LaminaEditor";
 
 interface CanvasPreviewProps {
@@ -11,8 +11,13 @@ interface CanvasPreviewProps {
   onDataChange?: (data: TravelData) => void;
 }
 
-const SW = 320, SH = Math.round((320 * 1350) / 1080);
+// Both formats render at full export resolution so preview = download
+const FEED_W = 1080, FEED_H = 1080;
 const FW = 320, FH = 320;
+
+const STORY_W = 1080, STORY_H = 1350;
+const SW = 320, SH = Math.round((320 * 1350) / 1080);
+const STORY_SCALE = SW / STORY_W; // CSS transform scale factor
 
 // Shimmer skeleton for canvas loading state
 const CanvasSkeleton = ({ width, height }: { width: number; height: number }) => (
@@ -41,20 +46,33 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
 
   useEffect(() => {
     if (!feedRef.current) return;
-    drawFeed(feedRef.current, data, FW, FH, imageEl, { laminaState: feedState });
+    const canvas = feedRef.current;
+    Promise.all([
+      document.fonts.ready,
+      document.fonts.load("800 48px 'Barlow Condensed'"),
+    ]).then(() => {
+      if (canvas)
+        drawFeed(canvas, data, FEED_W, FEED_H, imageEl, { laminaState: feedState });
+    });
   }, [data, imageEl, feedState]);
 
   useEffect(() => {
     if (!storyRef.current) return;
-    drawStory(storyRef.current, data, SW, SH, imageEl, { laminaState: storyState });
+    const canvas = storyRef.current;
+    Promise.all([
+      document.fonts.ready,
+      document.fonts.load("800 48px 'Barlow Condensed'"),
+    ]).then(() => {
+      if (canvas)
+        drawStory(canvas, data, STORY_W, STORY_H, imageEl, { laminaState: storyState });
+    });
   }, [data, imageEl, storyState]);
 
   const handleExportFeed = async () => {
+    if (!feedRef.current) return;
     setExportingFeed(true);
     try {
-      const canvas = document.createElement("canvas");
-      drawFeed(canvas, data, 1080, 1080, imageEl, { laminaState: scaleLaminaState(feedState, FW, 1080) });
-      canvas.toBlob((blob) => {
+      feedRef.current.toBlob((blob) => {
         if (!blob) return;
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -69,11 +87,10 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
   };
 
   const handleExportStory = async () => {
+    if (!storyRef.current) return;
     setExportingStory(true);
     try {
-      const canvas = document.createElement("canvas");
-      drawStory(canvas, data, 1080, 1350, imageEl, { laminaState: scaleLaminaState(storyState, SW, 1080) });
-      canvas.toBlob((blob) => {
+      storyRef.current.toBlob((blob) => {
         if (!blob) return;
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -112,7 +129,7 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
               {imageLoading ? (
                 <CanvasSkeleton width={FW} height={FH} />
               ) : (
-                <canvas ref={feedRef} width={FW} height={FH} style={{ display: "block" }} />
+                <canvas ref={feedRef} width={FEED_W} height={FEED_H} style={{ display: "block", width: FW, height: FH }} />
               )}
             </div>
 
@@ -144,11 +161,16 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
             </div>
 
             {/* Canvas or shimmer */}
-            <div style={{ borderRadius: 12, overflow: "hidden", boxShadow: "0 10px 40px rgba(0,0,0,0.3)" }}>
+            <div style={{ width: SW, height: SH, borderRadius: 12, overflow: "hidden", boxShadow: "0 10px 40px rgba(0,0,0,0.3)", position: "relative" }}>
               {imageLoading ? (
                 <CanvasSkeleton width={SW} height={SH} />
               ) : (
-                <canvas ref={storyRef} width={SW} height={SH} style={{ display: "block" }} />
+                <canvas
+                  ref={storyRef}
+                  width={STORY_W}
+                  height={STORY_H}
+                  style={{ display: "block", transformOrigin: "top left", transform: `scale(${STORY_SCALE})` }}
+                />
               )}
             </div>
 

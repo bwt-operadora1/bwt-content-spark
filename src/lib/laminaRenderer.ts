@@ -459,7 +459,7 @@ export function drawStory(
       const { dx: idx2, dy: idy2 } = getStyle(st, "inclui");
       const ilx = bodyX + idx2, ily = sepY + Math.round(H * 0.022) + idy2;
       if (getStyle(st, "inclui").visible) {
-        ctx.fillStyle = "#94a3b8"; ctx.font = `700 ${Math.round(H * 0.014)}px sans-serif`;
+        ctx.fillStyle = "#94a3b8"; ctx.font = `700 ${Math.round(H * 0.016)}px sans-serif`;
         ctx.textAlign = "left"; ctx.fillText("INCLUI", ilx, ily);
       }
     }
@@ -469,27 +469,32 @@ export function drawStory(
   { const es = getStyle(st, "inclui");
     if (es.visible) {
       const sc = es.fontSizeScale;
-      const { dx: ddx, dy: ddy } = getStyle(st, "destination");
       let fs = Math.round(H * 0.072 * getStyle(st, "destination").fontSizeScale);
-      const tmpCtx = document.createElement("canvas").getContext("2d")!;
-      tmpCtx.font = `800 ${fs}px 'Barlow Condensed', sans-serif`;
-      while (tmpCtx.measureText(data.destino.toUpperCase()).width > W * 0.60 && fs > 22) fs -= 2;
-      const subY2 = bodyY + ddx * 0 + fs + Math.round(H * 0.018) + ddy * 0;
+      ctx.save();
+      ctx.font = `800 ${fs}px 'Barlow Condensed', sans-serif`;
+      while (ctx.measureText(data.destino.toUpperCase()).width > W * 0.60 && fs > 22) fs -= 2;
+      ctx.restore();
+      const subY2 = bodyY + fs + Math.round(H * 0.016);
       const sepY2 = subY2 + Math.round(H * 0.016);
       const ilx = bodyX + es.dx, ily = sepY2 + Math.round(H * 0.022) + es.dy;
       const color = es.color || "#a78bfa";
-      let iy2 = ily + Math.round(H * 0.022);
-      const lineH2 = Math.round(H * 0.021);
-      const itemFs = Math.round(H * 0.017 * sc);
+      let iy2 = ily + Math.round(H * 0.026);
+      const lineH2 = Math.round(H * 0.024);
+      const itemFs = Math.round(H * 0.019 * sc);
       const txtX2 = ilx + Math.round(W * 0.022);
       const maxTxtW = W * 0.54 - Math.round(W * 0.022);
       (data.inclui || []).forEach((item) => {
-        ctx.fillStyle = color; ctx.font = `${itemFs}px sans-serif`;
+        ctx.fillStyle = color; ctx.font = `600 ${itemFs}px sans-serif`;
         ctx.fillText("\u2022", ilx, iy2);
         ctx.fillStyle = "#e2e8f0";
-        ctx.font = `${itemFs}px sans-serif`;
+        ctx.font = `600 ${itemFs}px sans-serif`;
         iy2 = wrapText(ctx, sanitize(item), txtX2, iy2, maxTxtW, lineH2);
       });
+      if (data.bagagem && /sem mala despachada/i.test(data.bagagem)) {
+        ctx.fillStyle = "#ffaa00"; ctx.font = `600 ${Math.round(H * 0.015 * sc)}px sans-serif`;
+        ctx.fillText("\u26A0 Só bagagem de mão", ilx, iy2 + Math.round(H * 0.006));
+        iy2 += Math.round(H * 0.022);
+      }
       const bounds = { x: ilx, y: ily - Math.round(H * 0.016), w: W * 0.54, h: iy2 - ily + Math.round(H * 0.016) };
       hits.push({ key: "inclui", label: "Inclui", ...bounds });
       highlightIfNeeded(ctx, bounds, "inclui", "Inclui", W, opts);
@@ -500,7 +505,8 @@ export function drawStory(
   { const es = getStyle(st, "price");
     if (es.visible) {
       const sc = es.fontSizeScale;
-      let py2 = bodyY + Math.round(H * 0.014) + es.dy;
+      // A PARTIR DE + 10x above separator; R$ baseline touches separator
+      let py2 = bodyY + Math.round(H * 0.020) + es.dy - 5;
       const prx = px2 + es.dx;
       const accent = es.color || "#a78bfa";
       ctx.textAlign = "right";
@@ -516,7 +522,7 @@ export function drawStory(
       }
       ctx.fillStyle = "#94a3b8"; ctx.font = `${Math.round(H * 0.011 * sc)}px sans-serif`;
       ctx.fillText("por pessoa em apto duplo", prx, py2);
-      const priceStartY = bodyY + Math.round(H * 0.018) + es.dy;
+      const priceStartY = bodyY + Math.round(H * 0.018) + es.dy - 5;
       const priceH = py2 - priceStartY + Math.round(H * 0.018);
       const bounds = { x: prx - W * 0.45, y: priceStartY, w: W * 0.45, h: priceH };
       hits.push({ key: "price", label: "Preço", ...bounds });
@@ -705,7 +711,7 @@ export function drawFeed(
       ctx.fillStyle = color;
       // Proactively reduce font for longer destination names
       const nameLen = data.destino.length;
-      const baseFrac = nameLen > 12 ? 0.050 : nameLen > 9 ? 0.060 : 0.082;
+      const baseFrac = nameLen > 15 ? 0.052 : nameLen > 12 ? 0.062 : nameLen > 9 ? 0.071 : nameLen > 6 ? 0.085 : 0.095;
       let fs = Math.round(H * baseFrac * sc);
       ctx.font = `800 ${fs}px 'Barlow Condensed', sans-serif`;
       while (ctx.measureText(data.destino.toUpperCase()).width > W * 0.58 && fs > 22) {
@@ -733,32 +739,34 @@ export function drawFeed(
       const sc = es.fontSizeScale;
       const destEs = getStyle(st, "destination");
       const nameLen2 = data.destino.length;
-      const baseFrac2 = nameLen2 > 12 ? 0.050 : nameLen2 > 9 ? 0.060 : 0.082;
+      const baseFrac2 = nameLen2 > 15 ? 0.052 : nameLen2 > 12 ? 0.062 : nameLen2 > 9 ? 0.071 : nameLen2 > 6 ? 0.085 : 0.095;
       let fs2 = Math.round(H * baseFrac2 * destEs.fontSizeScale);
-      const tmpCtx = document.createElement("canvas").getContext("2d")!;
-      tmpCtx.font = `800 ${fs2}px 'Barlow Condensed', sans-serif`;
-      while (tmpCtx.measureText(data.destino.toUpperCase()).width > W * 0.58 && fs2 > 22) fs2 -= 2;
-      const subY2 = bodyY + fs2 + Math.round(H * 0.018);
-      const sepY2 = subY2 + Math.round(H * 0.016);
-      const ilx = bodyX + es.dx, ily = sepY2 + Math.round(H * 0.022) + es.dy;
+      ctx.save();
+      ctx.font = `800 ${fs2}px 'Barlow Condensed', sans-serif`;
+      while (ctx.measureText(data.destino.toUpperCase()).width > W * 0.58 && fs2 > 22) fs2 -= 2;
+      ctx.restore();
+      const subY2 = bodyY + fs2 + Math.round(H * 0.016);
+      const sepY2 = subY2 + Math.round(H * 0.014);
+      const ilx = bodyX + es.dx, ily = sepY2 + Math.round(H * 0.024) + es.dy;
       const color = es.color || "#a78bfa";
-      ctx.fillStyle = "#94a3b8"; ctx.font = `700 ${Math.round(H * 0.014 * sc)}px sans-serif`;
+      ctx.fillStyle = "#94a3b8"; ctx.font = `700 ${Math.round(H * 0.016 * sc)}px sans-serif`;
       ctx.textAlign = "left"; ctx.fillText("INCLUI", ilx, ily);
-      let iy = ily + Math.round(H * 0.022);
-      const lineH2 = Math.round(H * 0.022);
-      const itemFs2 = Math.round(H * 0.016 * sc);
+      let iy = ily + Math.round(H * 0.026);
+      const lineH2 = Math.round(H * 0.024);
+      const itemFs2 = Math.round(H * 0.019 * sc);
       const txtX3 = ilx + Math.round(W * 0.022);
       const maxTxtW2 = W * 0.52 - Math.round(W * 0.022);
       (data.inclui || []).forEach((item) => {
-        ctx.fillStyle = color; ctx.font = `${itemFs2}px sans-serif`;
+        ctx.fillStyle = color; ctx.font = `600 ${itemFs2}px sans-serif`;
         ctx.fillText("\u2022", ilx, iy);
         ctx.fillStyle = "#e2e8f0";
-        ctx.font = `${itemFs2}px sans-serif`;
+        ctx.font = `600 ${itemFs2}px sans-serif`;
         iy = wrapText(ctx, sanitize(item), txtX3, iy, maxTxtW2, lineH2);
       });
       if (data.bagagem && /sem mala despachada/i.test(data.bagagem)) {
-        ctx.fillStyle = "#ffaa00"; ctx.font = `600 ${Math.round(H * 0.013)}px sans-serif`;
+        ctx.fillStyle = "#ffaa00"; ctx.font = `600 ${Math.round(H * 0.015 * sc)}px sans-serif`;
         ctx.fillText("\u26A0 Só bagagem de mão", ilx, iy + Math.round(H * 0.006));
+        iy += Math.round(H * 0.022);
       }
       const bounds = { x: ilx, y: ily - Math.round(H * 0.016), w: W * 0.52, h: iy - ily + Math.round(H * 0.024) };
       hits.push({ key: "inclui", label: "Inclui", ...bounds });
@@ -770,21 +778,31 @@ export function drawFeed(
   { const es = getStyle(st, "price");
     if (es.visible) {
       const sc = es.fontSizeScale;
-      // Price starts at bodyY — "R$" baseline aligns with destination name baseline
-      let py2 = bodyY + es.dy;
+      // Compute separator Y dynamically so R$ baseline always sits on the line
+      const prDestEs = getStyle(st, "destination");
+      const prNameLen = data.destino.length;
+      const prBaseFrac = prNameLen > 15 ? 0.052 : prNameLen > 12 ? 0.062 : prNameLen > 9 ? 0.071 : prNameLen > 6 ? 0.085 : 0.095;
+      let prFs = Math.round(H * prBaseFrac * prDestEs.fontSizeScale);
+      ctx.save();
+      ctx.font = `800 ${prFs}px 'Barlow Condensed', sans-serif`;
+      while (ctx.measureText(data.destino.toUpperCase()).width > W * 0.58 && prFs > 22) prFs -= 2;
+      ctx.restore();
+      const prSepY = bodyY + prFs + Math.round(H * 0.030); // subY(H*0.016) + sepGap(H*0.014)
+      // Total advance from py2 to R$ baseline = H*0.036(A PARTIR DE) + H*0.046(10x) = H*0.082
+      let py2 = Math.max(bodyY + Math.round(H * 0.004), prSepY - Math.round(H * 0.082 * sc)) + es.dy - 5;
       const prx = px2 + es.dx;
       const priceStartY = py2;
       const accent = es.color || "#a78bfa";
       ctx.textAlign = "right";
       // "A PARTIR DE" label — tight spacing to keep block high
       ctx.fillStyle = "#94a3b8"; ctx.font = `600 ${Math.round(H * 0.013 * sc)}px sans-serif`;
-      ctx.fillText("A PARTIR DE", prx, py2); py2 += Math.round(H * 0.022 * sc);
+      ctx.fillText("A PARTIR DE", prx, py2); py2 += Math.round(H * 0.036 * sc);
       // Parcelas Nx
       ctx.fillStyle = accent; ctx.font = `900 ${Math.round(H * 0.038 * sc)}px sans-serif`;
       ctx.fillText(`${data.parcelas}x`, prx, py2); py2 += Math.round(H * 0.046 * sc);
       // Main price
       ctx.fillStyle = "#fff"; ctx.font = `900 ${Math.round(H * 0.048 * sc)}px sans-serif`;
-      ctx.fillText(`R$ ${data.precoParcela.replace("R$ ", "")}`, prx, py2); py2 += Math.round(H * 0.022 * sc);
+      ctx.fillText(`R$ ${data.precoParcela.replace("R$ ", "")}`, prx, py2); py2 += Math.round(H * 0.026 * sc);
       if (data.precoAVista) {
         ctx.fillStyle = "#e2e8f0"; ctx.font = `600 ${Math.round(H * 0.014 * sc)}px sans-serif`;
         ctx.fillText(`Ou ${data.precoAVista}`, prx, py2); py2 += Math.round(H * 0.018 * sc);

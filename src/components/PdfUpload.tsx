@@ -56,7 +56,8 @@ const PdfUpload = ({ onDataExtracted }: PdfUploadProps) => {
       onDataExtracted(data);
     } catch (err) {
       console.error("PDF processing error:", err);
-      setError("Erro ao processar o PDF. Tente novamente ou use os dados de exemplo.");
+      const msg = err instanceof Error ? err.message : null;
+      setError(msg ?? "Erro ao processar o PDF. Tente novamente ou use os dados de exemplo.");
     } finally { setIsProcessing(false); }
   };
 
