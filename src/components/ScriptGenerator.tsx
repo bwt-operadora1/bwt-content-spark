@@ -1,7 +1,8 @@
-import { FileText, Copy, Check, MessageCircle, Instagram, Mail } from "lucide-react";
+import { FileText, Copy, Check, MessageCircle, Instagram, Mail, Eye, EyeOff } from "lucide-react";
 import { useState, useMemo } from "react";
 import { TravelData } from "@/types/travel";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 interface ScriptGeneratorProps {
   data: TravelData;
@@ -9,32 +10,29 @@ interface ScriptGeneratorProps {
 
 const ScriptGenerator = ({ data }: ScriptGeneratorProps) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [whatsappPreview, setWhatsappPreview] = useState(false);
+  const { toast } = useToast();
 
-  const copyText = (text: string, id: string) => {
+  const copyText = (text: string, id: string, label: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
+    toast({ description: `${label} copiado!`, duration: 1800 });
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Script de Reels: usa conteúdo do Gemini ou fallback template
   const scenes = useMemo(() => {
-    if (data.marketing?.reelsScript?.length) {
-      return data.marketing.reelsScript;
-    }
-    // Fallback template
+    if (data.marketing?.reelsScript?.length) return data.marketing.reelsScript;
     return [
-      { cena: 1, duracao: "0–3s", tipo: "Hook",    texto: `Você já imaginou acordar com essa vista em ${data.destino}? 🌊☀️` },
-      { cena: 2, duracao: "3–7s", tipo: "Produto",  texto: `${data.hotel} — ${data.duracao} de puro luxo com ${data.regime}` },
-      { cena: 3, duracao: "7–11s", tipo: "Oferta",  texto: `A partir de ${data.parcelas}x R$ ${data.precoParcela?.replace("R$ ", "")} por pessoa${data.desconto ? ` · ${data.desconto}% OFF` : ""}` },
-      { cena: 4, duracao: "11–14s", tipo: "Inclui", texto: (data.inclui ?? []).slice(0, 3).join(" · ") || "Aéreo + Hotel + Transfer — tudo incluso ✅" },
-      { cena: 5, duracao: "14–15s", tipo: "CTA",    texto: `Chama a ${data.agencia || "agência"} agora e garante sua vaga! 👇` },
+      { cena: 1, duracao: "0–3s",   tipo: "Hook",    texto: `Você já imaginou acordar com essa vista em ${data.destino}? 🌊☀️` },
+      { cena: 2, duracao: "3–7s",   tipo: "Produto", texto: `${data.hotel} — ${data.duracao} de puro luxo com ${data.regime}` },
+      { cena: 3, duracao: "7–11s",  tipo: "Oferta",  texto: `A partir de ${data.parcelas}x R$ ${data.precoParcela?.replace("R$ ", "")} por pessoa${data.desconto ? ` · ${data.desconto}% OFF` : ""}` },
+      { cena: 4, duracao: "11–14s", tipo: "Inclui",  texto: (data.inclui ?? []).slice(0, 3).join(" · ") || "Aéreo + Hotel + Transfer — tudo incluso ✅" },
+      { cena: 5, duracao: "14–15s", tipo: "CTA",     texto: `Chama a ${data.agencia || "agência"} agora e garante sua vaga! 👇` },
     ];
   }, [data]);
 
-  // Caption Instagram
   const captionInstagram = useMemo(() => {
     if (data.marketing?.captionInstagram) return data.marketing.captionInstagram;
-    // Fallback
     return `✈️ ${data.destino} te espera! 🌴
 
 🏨 ${data.hotel}
@@ -52,10 +50,8 @@ ${(data.inclui || []).map((i) => `  • ${i}`).join("\n")}
 #BWT #BWTOperadora #${data.destino.replace(/\s/g, "")} #Viagem #Turismo #ViagemDeSonho #PacoteDeTurismo #Promocao`;
   }, [data]);
 
-  // Mensagem WhatsApp
   const captionWhatsApp = useMemo(() => {
     if (data.marketing?.captionWhatsApp) return data.marketing.captionWhatsApp;
-    // Fallback
     return `🌴 *${data.destino} — Oferta Especial*
 
 🏨 *Hotel:* ${data.hotel}
@@ -73,10 +69,8 @@ ${(data.inclui || []).map((i) => `  • ${i}`).join("\n")}
 _Valores por pessoa em apto duplo. Sujeito a disponibilidade._`;
   }, [data]);
 
-  // Script de Email
   const emailScript = useMemo(() => {
     if (data.marketing?.emailScript) return data.marketing.emailScript;
-    // Fallback
     const agencia = data.agencia || "BWT Operadora";
     return `Assunto: ${data.destino} | ${data.duracao} a partir de ${data.parcelas}x R$ ${data.precoParcela?.replace("R$ ", "")} por pessoa
 
@@ -101,92 +95,146 @@ Atenciosamente,
 ${agencia}`;
   }, [data]);
 
-  const CopyButton = ({ text, id }: { text: string; id: string }) => (
-    <Button onClick={() => copyText(text, id)} size="sm" variant="outline" className="gap-2 text-xs">
+  const CopyButton = ({ text, id, label }: { text: string; id: string; label: string }) => (
+    <Button onClick={() => copyText(text, id, label)} size="sm" variant="outline" className="gap-2 text-xs shrink-0">
       {copiedId === id
-        ? <Check className="w-3 h-3" style={{ color: "#00b4c8" }} />
+        ? <Check className="w-3 h-3" style={{ color: "#9333EA" }} />
         : <Copy className="w-3 h-3" />}
       {copiedId === id ? "Copiado!" : "Copiar"}
     </Button>
   );
 
+  // Render WhatsApp *bold* markdown visually
+  const renderWhatsApp = (text: string) => {
+    return text.split(/(\*[^*]+\*)/g).map((part, i) => {
+      if (part.startsWith("*") && part.endsWith("*")) {
+        return <strong key={i}>{part.slice(1, -1)}</strong>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
   const hasAI = !!data.marketing;
 
+  const TIPO_COLORS: Record<string, string> = {
+    Hook: "#f59e0b",
+    Produto: "#9333EA",
+    Oferta: "#10b981",
+    Inclui: "#8b5cf6",
+    CTA: "#ef4444",
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {hasAI && (
         <div
           className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
-          style={{ background: "rgba(0,180,200,0.08)", border: "0.5px solid rgba(0,180,200,0.3)", color: "#00b4c8" }}
+          style={{ background: "rgba(147,51,234,0.08)", border: "0.5px solid rgba(147,51,234,0.3)", color: "#9333EA" }}
         >
           ✨ Conteúdo gerado com Gemini AI — personalizado para {data.destino}
           {data.agencia ? ` · Agência: ${data.agencia}` : ""}
         </div>
       )}
 
-      {/* Script Reels */}
+      {/* ── Script Reels ── */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <FileText className="w-5 h-5" style={{ color: "#00b4c8" }} />
+          <FileText className="w-5 h-5" style={{ color: "#9333EA" }} />
           <h2 className="text-2xl font-display font-semibold">Script para Reels / TikTok</h2>
         </div>
         <div className="grid gap-2">
-          {scenes.map((scene) => (
-            <div key={scene.cena} className="rounded-xl p-4 flex items-start gap-4 glass-card">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0"
-                style={{ background: "#0d1b2a", color: "#00b4c8", border: "1px solid rgba(0,180,200,0.3)" }}
-              >
-                {scene.cena}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-semibold" style={{ color: "#00b4c8" }}>{scene.tipo}</span>
-                  <span className="text-xs text-muted-foreground">{scene.duracao}</span>
+          {scenes.map((scene) => {
+            const typeColor = TIPO_COLORS[scene.tipo] ?? "#9333EA";
+            return (
+              <div key={scene.cena} className="rounded-xl p-4 flex items-start gap-4 glass-card">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0"
+                  style={{ background: "#0d1b2a", color: typeColor, border: `1px solid ${typeColor}40` }}
+                >
+                  {scene.cena}
                 </div>
-                <p className="text-sm text-foreground font-medium">{scene.texto}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span
+                      className="text-xs font-bold px-2 py-0.5 rounded-full"
+                      style={{ background: `${typeColor}18`, color: typeColor }}
+                    >
+                      {scene.tipo}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{scene.duracao}</span>
+                  </div>
+                  <p className="text-sm text-foreground font-medium leading-snug">{scene.texto}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
-      {/* Caption Instagram */}
+      {/* ── Caption Instagram ── */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <Instagram className="w-5 h-5" style={{ color: "#00b4c8" }} />
+            <Instagram className="w-5 h-5" style={{ color: "#9333EA" }} />
             <h3 className="text-lg font-display font-semibold">Legenda Instagram</h3>
+            <span className="label-caps" style={{ color: "hsl(var(--muted-foreground))" }}>
+              {captionInstagram.length} chars
+            </span>
           </div>
-          <CopyButton text={captionInstagram} id="instagram" />
+          <CopyButton text={captionInstagram} id="instagram" label="Legenda Instagram" />
         </div>
         <div className="glass-card rounded-xl p-4">
           <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">{captionInstagram}</p>
         </div>
       </div>
 
-      {/* Mensagem WhatsApp */}
+      {/* ── Mensagem WhatsApp ── */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <MessageCircle className="w-5 h-5" style={{ color: "#00b4c8" }} />
+            <MessageCircle className="w-5 h-5" style={{ color: "#9333EA" }} />
             <h3 className="text-lg font-display font-semibold">Mensagem WhatsApp</h3>
+            <span className="label-caps">{captionWhatsApp.length} chars</span>
           </div>
-          <CopyButton text={captionWhatsApp} id="whatsapp" />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-xs"
+              onClick={() => setWhatsappPreview((v) => !v)}
+              style={{ color: "#9333EA" }}
+            >
+              {whatsappPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              {whatsappPreview ? "Raw" : "Preview"}
+            </Button>
+            <CopyButton text={captionWhatsApp} id="whatsapp" label="Mensagem WhatsApp" />
+          </div>
         </div>
         <div className="glass-card rounded-xl p-4">
-          <p className="text-sm text-foreground whitespace-pre-line leading-relaxed font-mono">{captionWhatsApp}</p>
+          {whatsappPreview ? (
+            <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">
+              {captionWhatsApp.split("\n").map((line, i) => (
+                <span key={i}>
+                  {renderWhatsApp(line)}
+                  {"\n"}
+                </span>
+              ))}
+            </p>
+          ) : (
+            <p className="text-sm text-foreground whitespace-pre-line leading-relaxed font-mono">{captionWhatsApp}</p>
+          )}
         </div>
       </div>
 
-      {/* Script de Email */}
+      {/* ── Script de Email ── */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <Mail className="w-5 h-5" style={{ color: "#00b4c8" }} />
+            <Mail className="w-5 h-5" style={{ color: "#9333EA" }} />
             <h3 className="text-lg font-display font-semibold">E-mail de Vendas</h3>
+            <span className="label-caps">{emailScript.length} chars</span>
           </div>
-          <CopyButton text={emailScript} id="email" />
+          <CopyButton text={emailScript} id="email" label="E-mail de vendas" />
         </div>
         <div className="glass-card rounded-xl p-4">
           <p className="text-sm text-foreground whitespace-pre-line leading-relaxed font-mono">{emailScript}</p>

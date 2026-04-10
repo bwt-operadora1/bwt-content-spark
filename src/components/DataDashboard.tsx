@@ -10,49 +10,77 @@ import {
   Plane,
   Plus,
   Trash2,
+  GripVertical,
+  ChevronDown,
 } from "lucide-react";
 import { TravelData } from "@/types/travel";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useState } from "react";
 
 interface DataDashboardProps {
   data: TravelData;
   onChange: (data: TravelData) => void;
 }
 
-const FIELDS = [
-  { key: "destino" as const, label: "Destino", icon: MapPin },
-  { key: "hotel" as const, label: "Hotel", icon: Hotel },
-  { key: "quartoTipo" as const, label: "Tipo de Quarto", icon: Hotel },
-  { key: "duracao" as const, label: "Duração", icon: Moon },
-  { key: "regime" as const, label: "Regime", icon: UtensilsCrossed },
-  { key: "companhiaAerea" as const, label: "Cia. Aérea", icon: Plane },
-  { key: "origemVoo" as const, label: "Saída de", icon: Plane },
-  { key: "tipoProduto" as const, label: "Tipo", icon: Plane },
-  { key: "campanha" as const, label: "Campanha", icon: Calendar },
-  { key: "desconto" as const, label: "Desconto %", icon: Percent },
-];
+// Collapsible section component
+const Section = ({
+  title,
+  defaultOpen = true,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="glass-card rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-muted/20 transition-colors"
+      >
+        <span className="label-caps">{title}</span>
+        <ChevronDown
+          className="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200"
+          style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)" }}
+        />
+      </button>
+      {open && <div className="px-3 pb-3 space-y-2">{children}</div>}
+    </div>
+  );
+};
 
-/** Strip Unicode symbols/emoji and ASCII asterisks from text fields */
-function cleanField(value: string): string {
-  return value
-    .replace(/[\u2600-\u27BF\u2900-\u2BFF\u{1F000}-\u{1FFFF}\uFE00-\uFE0F]+/gu, "")
-    .replace(/(\s*\*+)+/g, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-}
-
-const TEXT_FIELDS = new Set<keyof TravelData>([
-  "destino", "hotel", "quartoTipo", "regime", "duracao",
-  "companhiaAerea", "bagagem", "tipoProduto", "campanha", "agencia",
-]);
+// Single field row
+const FieldRow = ({
+  icon: Icon,
+  label,
+  value,
+  onChange,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) => (
+  <div className="flex items-center gap-2.5 pt-2">
+    <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
+    <div className="flex-1 min-w-0">
+      <label className="label-caps block mb-0.5">{label}</label>
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="border-0 bg-transparent p-0 h-7 font-semibold text-sm text-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+      />
+    </div>
+  </div>
+);
 
 const DataDashboard = ({ data, onChange }: DataDashboardProps) => {
   const updateField = (key: keyof TravelData, value: string) => {
     const updated = { ...data, [key]: value };
 
-    // Recalcular preço por pessoa e parcela ao mudar precoTotal, parcelas ou numAdultos
     if (key === "precoTotal" || key === "parcelas" || key === "numAdultos") {
       const total = parseFloat(
         (key === "precoTotal" ? value : data.precoTotal).replace(/[^\d,]/g, "").replace(",", "."),
@@ -89,136 +117,148 @@ const DataDashboard = ({ data, onChange }: DataDashboardProps) => {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Pencil className="w-4 h-4" style={{ color: "#00b4c8" }} />
-        <h2 className="text-lg font-display font-semibold">Dados do Orçamento</h2>
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 px-1">
+        <Pencil className="w-4 h-4" style={{ color: "#9333EA" }} />
+        <h2 className="text-base font-display font-bold uppercase tracking-wide">Dados do Orçamento</h2>
       </div>
 
-      {/* Campos principais */}
-      <div className="grid grid-cols-1 gap-2">
-        {FIELDS.map(({ key, label, icon: Icon }) => (
-          <div key={key} className="glass-card rounded-lg p-2.5 flex items-center gap-3">
-            <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            <div className="flex-1 min-w-0">
-              <label className="text-xs text-muted-foreground font-medium">{label}</label>
+      {/* ── Destino & Hotel ── */}
+      <Section title="Destino & Hotel">
+        <FieldRow icon={MapPin} label="Destino" value={(data.destino as string) || ""} onChange={(v) => updateField("destino", v)} />
+        <FieldRow icon={Hotel} label="Hotel" value={(data.hotel as string) || ""} onChange={(v) => updateField("hotel", v)} />
+        <FieldRow icon={Hotel} label="Tipo de Quarto" value={(data.quartoTipo as string) || ""} onChange={(v) => updateField("quartoTipo", v)} />
+      </Section>
+
+      {/* ── Pacote ── */}
+      <Section title="Pacote">
+        <FieldRow icon={Moon} label="Duração" value={(data.duracao as string) || ""} onChange={(v) => updateField("duracao", v)} />
+        <FieldRow icon={UtensilsCrossed} label="Regime" value={(data.regime as string) || ""} onChange={(v) => updateField("regime", v)} />
+        <FieldRow icon={Plane} label="Tipo" value={(data.tipoProduto as string) || ""} onChange={(v) => updateField("tipoProduto", v)} />
+        <FieldRow icon={Calendar} label="Campanha" value={(data.campanha as string) || ""} onChange={(v) => updateField("campanha", v)} />
+        <FieldRow icon={Percent} label="Desconto %" value={(data.desconto as string) || ""} onChange={(v) => updateField("desconto", v)} />
+      </Section>
+
+      {/* ── Voo ── */}
+      <Section title="Voo" defaultOpen={false}>
+        <FieldRow icon={Plane} label="Cia. Aérea" value={(data.companhiaAerea as string) || ""} onChange={(v) => updateField("companhiaAerea", v)} />
+        <FieldRow icon={Plane} label="Saída de" value={(data.origemVoo as string) || ""} onChange={(v) => updateField("origemVoo", v)} />
+        <div className="flex items-center gap-2.5 pt-2">
+          <Checkbox
+            id="bloqueioAereo"
+            checked={!!data.bloqueioAereo}
+            onCheckedChange={(checked) => onChange({ ...data, bloqueioAereo: !!checked })}
+          />
+          <label htmlFor="bloqueioAereo" className="text-sm font-semibold cursor-pointer select-none">
+            Bloqueio Aéreo
+          </label>
+        </div>
+      </Section>
+
+      {/* ── Precificação ── */}
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{
+          border: "1px solid hsl(var(--border)/0.5)",
+          borderLeft: "4px solid hsl(var(--bwt-gold))",
+          background: "hsl(var(--card)/0.9)",
+        }}
+      >
+        <div className="px-3 py-2.5">
+          <span className="label-caps flex items-center gap-1.5">
+            <DollarSign className="w-3 h-3" /> Precificação
+          </span>
+        </div>
+        <div className="px-3 pb-3 space-y-3">
+          {/* Inputs row */}
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <label className="label-caps block mb-1">Total {data.numAdultos || 2} pax</label>
               <Input
-                value={(data[key] as string) || ""}
-                onChange={(e) => updateField(key, e.target.value)}
-                className="border-0 bg-transparent p-0 h-6 font-semibold text-sm text-foreground"
+                value={String(data.precoTotal || "")}
+                onChange={(e) => updateField("precoTotal", e.target.value)}
+                className="h-8 text-sm font-semibold"
+              />
+            </div>
+            <div className="w-14">
+              <label className="label-caps block mb-1 text-center">Parcelas</label>
+              <Input
+                value={String(data.parcelas || "")}
+                onChange={(e) => updateField("parcelas", e.target.value)}
+                className="h-8 text-sm font-semibold text-center"
+              />
+            </div>
+            <div className="w-14">
+              <label className="label-caps block mb-1 text-center">Pax</label>
+              <Input
+                value={String(data.numAdultos || "")}
+                onChange={(e) => updateField("numAdultos", e.target.value)}
+                className="h-8 text-sm font-semibold text-center"
               />
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* Bloqueio Aéreo */}
-      <div className="glass-card rounded-lg p-2.5 flex items-center gap-3">
-        <Checkbox
-          id="bloqueioAereo"
-          checked={!!data.bloqueioAereo}
-          onCheckedChange={(checked) => onChange({ ...data, bloqueioAereo: !!checked })}
-        />
-        <label htmlFor="bloqueioAereo" className="text-sm font-semibold cursor-pointer select-none">
-          Bloqueio Aéreo
-        </label>
-      </div>
-
-      {/* Precificação */}
-      <div className="glass-card rounded-lg p-3 space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-          <DollarSign className="w-3.5 h-3.5" /> Precificação
-        </p>
-        <div className="flex gap-2 items-end">
-          <div className="flex-1">
-            <label className="text-xs text-muted-foreground">Total {data.numAdultos || 2} pax</label>
-            <Input
-              value={String(data.precoTotal || "")}
-              onChange={(e) => updateField("precoTotal", e.target.value)}
-              className="h-7 text-sm font-semibold mt-0.5"
-            />
-          </div>
-          <div className="w-14">
-            <label className="text-xs text-muted-foreground">Parcelas</label>
-            <Input
-              value={String(data.parcelas || "")}
-              onChange={(e) => updateField("parcelas", e.target.value)}
-              className="h-7 text-sm font-semibold mt-0.5 text-center"
-            />
-          </div>
-          <div className="w-14">
-            <label className="text-xs text-muted-foreground">Adultos</label>
-            <Input
-              value={String(data.numAdultos || "")}
-              onChange={(e) => updateField("numAdultos", e.target.value)}
-              className="h-7 text-sm font-semibold mt-0.5 text-center"
-            />
-          </div>
-        </div>
-        <div
-          className="rounded-lg p-2 text-xs space-y-0.5"
-          style={{ background: "rgba(0,180,200,0.08)", border: "0.5px solid rgba(0,180,200,0.2)" }}
-        >
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Por pessoa</span>
-            <span className="font-semibold" style={{ color: "#00b4c8" }}>
-              {data.precoPorPessoa || "—"}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Parcela ({data.parcelas}x)</span>
-            <span className="font-semibold">
-              {data.precoParcela || "—"}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">À vista ({data.desconto || 5}% desc.)</span>
-            <span className="font-semibold">{data.precoAVista || "—"}</span>
+          {/* Calculated stats */}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: "Por pessoa", value: data.precoPorPessoa, highlight: true },
+              { label: `Parcela (${data.parcelas}x)`, value: data.precoParcela, highlight: false },
+              { label: `À vista (${data.desconto || 5}% off)`, value: data.precoAVista, highlight: false },
+            ].map(({ label, value, highlight }) => (
+              <div
+                key={label}
+                className="rounded-lg p-2 text-center"
+                style={{ background: "rgba(147,51,234,0.06)", border: "0.5px solid rgba(147,51,234,0.15)" }}
+              >
+                <p className="label-caps mb-1" style={{ fontSize: 9 }}>{label}</p>
+                <p
+                  className="text-xs font-bold leading-tight"
+                  style={{ color: highlight ? "#9333EA" : "hsl(var(--foreground))" }}
+                >
+                  {value || "—"}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Datas */}
-      <div className="glass-card rounded-lg p-3 space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-          <Calendar className="w-3.5 h-3.5" /> Período
-        </p>
-        <div className="grid grid-cols-2 gap-2">
+      {/* ── Período ── */}
+      <Section title="Período" defaultOpen={false}>
+        <div className="grid grid-cols-2 gap-2 pt-1">
           {[
             { key: "dataInicio" as const, label: "Início" },
             { key: "dataFim" as const, label: "Fim" },
           ].map(({ key, label }) => (
             <div key={key}>
-              <label className="text-xs text-muted-foreground">{label}</label>
+              <label className="label-caps block mb-1">{label}</label>
               <Input
                 value={(data[key] as string) || ""}
                 onChange={(e) => updateField(key, e.target.value)}
-                className="h-7 text-sm font-semibold mt-0.5"
+                className="h-8 text-sm font-semibold"
               />
             </div>
           ))}
         </div>
-      </div>
+      </Section>
 
-      {/* Inclui */}
-      <div className="glass-card rounded-lg p-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">O que inclui</p>
+      {/* ── O que Inclui ── */}
+      <Section title="O que inclui">
+        <div className="flex justify-end">
           <Button
             onClick={addInclui}
             size="sm"
             variant="ghost"
-            className="h-6 px-2 text-xs gap-1"
-            style={{ color: "#00b4c8" }}
+            className="h-6 px-2 text-xs gap-1 -mt-1"
+            style={{ color: "#9333EA" }}
           >
             <Plus className="w-3 h-3" /> Adicionar
           </Button>
         </div>
         {(data.inclui || []).map((item, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <span className="text-xs" style={{ color: "#00b4c8" }}>
-              •
-            </span>
+          <div key={i} className="flex items-center gap-2 group">
+            <GripVertical className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />
+            <span className="text-xs shrink-0" style={{ color: "#9333EA" }}>•</span>
             <Input
               value={item}
               onChange={(e) => updateInclui(i, e.target.value)}
@@ -229,13 +269,13 @@ const DataDashboard = ({ data, onChange }: DataDashboardProps) => {
               onClick={() => removeInclui(i)}
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
+              className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive shrink-0 transition-opacity"
             >
               <Trash2 className="w-3 h-3" />
             </Button>
           </div>
         ))}
-      </div>
+      </Section>
     </div>
   );
 };

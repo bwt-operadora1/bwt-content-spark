@@ -6,7 +6,7 @@ import { useDestinationImages } from "@/hooks/useDestinationImage";
 import { Muxer, ArrayBufferTarget } from "mp4-muxer";
 
 // ─── Canvas dimensions ────────────────────────────────────────────────────────
-const PW = 270, PH = 480;   // preview (9:16 scaled)
+const PW = 300, PH = 533;   // preview (9:16 scaled)
 const VW = 1080, VH = 1920; // export (full Reels/TikTok resolution)
 
 // ─── Scene timeline (seconds) ────────────────────────────────────────────────
@@ -263,6 +263,8 @@ function drawVideoFrame(
   }
 }
 
+const SCENE_LABELS = ["Hook", "Produto", "Oferta", "Inclui", "CTA"];
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 type Status = "idle" | "generating" | "done";
@@ -278,6 +280,7 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
 
   const [status, setStatus] = useState<Status>("idle");
   const [progress, setProgress] = useState(0);
+  const [currentScene, setCurrentScene] = useState(0);
 
   const { imageEls, loading: imageLoading } = useDestinationImages(data.destino, 5);
 
@@ -301,6 +304,7 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
     const loop = (now: number) => {
       const t = ((now - start) / 1000) % TOTAL_DURATION;
       drawVideoFrame(canvas, data, bgImagesRef.current, t);
+      setCurrentScene(getSceneAt(t).idx);
       raf = requestAnimationFrame(loop);
     };
 
@@ -387,7 +391,7 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <Video className="w-5 h-5" style={{ color: "#00b4c8" }} />
+        <Video className="w-5 h-5" style={{ color: "#9333EA" }} />
         <h2 className="text-2xl font-display font-semibold">Vídeo Viral</h2>
         {imageLoading && (
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -413,13 +417,32 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
           }}
         >
           <canvas ref={canvasRef} width={PW} height={PH} style={{ display: "block" }} />
+          {status !== "generating" && (
+            <div
+              style={{
+                position: "absolute",
+                bottom: 8,
+                left: "50%",
+                transform: "translateX(-50%)",
+                background: "rgba(0,0,0,0.65)",
+                borderRadius: 6,
+                padding: "2px 10px",
+                fontSize: 11,
+                fontWeight: 600,
+                color: "#9333EA",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Cena {currentScene + 1} · {SCENE_LABELS[currentScene] ?? ""}
+            </div>
+          )}
           {status === "generating" && (
             <div
               style={{
                 position: "absolute",
                 top: 8,
                 right: 8,
-                background: "rgba(0,180,200,0.9)",
+                background: "rgba(147,51,234,0.9)",
                 borderRadius: 6,
                 padding: "2px 8px",
                 fontSize: 11,
@@ -440,7 +463,7 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
             </p>
             <Button
               onClick={handleGenerate}
-              style={{ background: "#00b4c8", color: "#0d1b2a" }}
+              style={{ background: "#9333EA", color: "#fff" }}
               className="font-semibold hover:opacity-90 px-6"
             >
               <Play className="w-4 h-4 mr-2" />
@@ -459,7 +482,7 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
                 className="h-2 rounded-full"
                 style={{
                   width: `${progress}%`,
-                  background: "#00b4c8",
+                  background: "#9333EA",
                   transition: "width 0.1s linear",
                 }}
               />
@@ -480,7 +503,7 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
             <div className="flex gap-2">
               <Button
                 onClick={handleGenerate}
-                style={{ background: "#00b4c8", color: "#0d1b2a" }}
+                style={{ background: "#9333EA", color: "#fff" }}
                 className="font-semibold hover:opacity-90"
               >
                 <Download className="w-4 h-4 mr-2" />

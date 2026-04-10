@@ -483,7 +483,7 @@ export function drawStory(
       const itemFs = Math.round(H * 0.017 * sc);
       const txtX2 = ilx + Math.round(W * 0.022);
       const maxTxtW = W * 0.54 - Math.round(W * 0.022);
-      (data.inclui || []).slice(0, 5).forEach((item) => {
+      (data.inclui || []).forEach((item) => {
         ctx.fillStyle = color; ctx.font = `${itemFs}px sans-serif`;
         ctx.fillText("\u2022", ilx, iy2);
         ctx.fillStyle = "#e2e8f0";
@@ -744,7 +744,7 @@ export function drawFeed(
       const itemFs2 = Math.round(H * 0.016 * sc);
       const txtX3 = ilx + Math.round(W * 0.022);
       const maxTxtW2 = W * 0.52 - Math.round(W * 0.022);
-      (data.inclui || []).slice(0, 4).forEach((item) => {
+      (data.inclui || []).forEach((item) => {
         ctx.fillStyle = color; ctx.font = `${itemFs2}px sans-serif`;
         ctx.fillText("\u2022", ilx, iy);
         ctx.fillStyle = "#e2e8f0";

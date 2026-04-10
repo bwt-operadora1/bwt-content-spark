@@ -6,66 +6,68 @@
 
 @layer base {
   :root {
-    --background: 210 25% 97%;
-    --foreground: 210 60% 10%;
+    --background: 270 12% 97%;
+    --foreground: 272 55% 8%;
 
     --card: 0 0% 100%;
-    --card-foreground: 210 60% 10%;
+    --card-foreground: 272 55% 8%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 210 60% 10%;
+    --popover-foreground: 272 55% 8%;
 
-    --primary: 210 60% 12%;
+    --primary: 272 68% 40%;        /* #6B21A8 — BWT purple */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 190 30% 92%;
-    --secondary-foreground: 210 60% 12%;
+    --secondary: 272 30% 93%;
+    --secondary-foreground: 272 60% 22%;
 
-    --muted: 210 20% 94%;
-    --muted-foreground: 210 20% 50%;
+    --muted: 270 15% 93%;
+    --muted-foreground: 270 12% 48%;
 
-    --accent: 190 100% 39%;
-    --accent-foreground: 210 60% 10%;
+    --accent: 272 80% 57%;         /* #9333EA — vivid purple */
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 20% 88%;
-    --input: 210 20% 88%;
-    --ring: 190 100% 39%;
+    --border: 270 15% 87%;
+    --input: 270 15% 87%;
+    --ring: 272 68% 40%;
 
     --radius: 0.75rem;
 
     /* BWT Brand tokens */
-    --bwt-navy: 210 60% 12%;
-    --bwt-teal: 190 100% 39%;
-    --bwt-teal-dark: 190 100% 28%;
-    --bwt-teal-light: 190 60% 92%;
-    --bwt-white: 0 0% 100%;
+    --bwt-brand:        272 68% 40%;   /* #6B21A8 — exact logo purple */
+    --bwt-brand-vivid:  272 80% 57%;   /* #9333EA — CTA / interactive */
+    --bwt-brand-light:  272 91% 65%;   /* #A855F7 — accents */
+    --bwt-brand-pale:   272 100% 97%;  /* #FAF5FF — very light wash */
+    --bwt-gold:         42 75% 58%;
+    --bwt-success:      142 60% 40%;
+    --bwt-warning:      38 95% 54%;
 
     font-family: "Inter", sans-serif;
   }
 
   .dark {
-    --background: 210 50% 8%;
-    --foreground: 210 20% 95%;
-    --card: 210 45% 12%;
-    --card-foreground: 210 20% 95%;
-    --popover: 210 45% 12%;
-    --popover-foreground: 210 20% 95%;
-    --primary: 190 100% 39%;
-    --primary-foreground: 210 60% 8%;
-    --secondary: 210 35% 18%;
-    --secondary-foreground: 210 20% 95%;
-    --muted: 210 30% 16%;
-    --muted-foreground: 210 15% 55%;
-    --accent: 190 100% 39%;
-    --accent-foreground: 210 60% 8%;
+    --background: 272 28% 6%;
+    --foreground: 270 20% 95%;
+    --card: 272 24% 10%;
+    --card-foreground: 270 20% 95%;
+    --popover: 272 24% 10%;
+    --popover-foreground: 270 20% 95%;
+    --primary: 272 80% 57%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 272 20% 16%;
+    --secondary-foreground: 270 20% 95%;
+    --muted: 272 20% 14%;
+    --muted-foreground: 270 12% 55%;
+    --accent: 272 80% 57%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 62% 30%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 210 30% 20%;
-    --input: 210 30% 20%;
-    --ring: 190 100% 39%;
+    --destructive-foreground: 270 40% 98%;
+    --border: 272 18% 18%;
+    --input: 272 18% 18%;
+    --ring: 272 80% 57%;
   }
 }
 
@@ -92,6 +94,13 @@
     @apply bg-card/90 backdrop-blur-md border border-border/50 shadow-sm;
   }
   .bwt-gradient {
-    background: linear-gradient(135deg, #0d1b2a 0%, #0d3a4a 100%);
+    background: linear-gradient(135deg, #3b0764 0%, #6b21a8 100%);
+  }
+  .label-caps {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
   }
 }
