@@ -73,7 +73,7 @@ const PdfUpload = ({ onDataExtracted }: PdfUploadProps) => {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-6 py-20 relative overflow-hidden"
+      className="fixed inset-0 flex flex-col items-center justify-center px-6 overflow-y-auto"
       style={{ background: "linear-gradient(150deg, #0C0812 0%, #130A20 55%, #0C0812 100%)" }}
     >
       {/* Radial glow */}

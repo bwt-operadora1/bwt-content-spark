@@ -54,7 +54,6 @@ const Index = () => {
     setSaveState("idle");
   };
 
-  // Keyboard shortcuts
   useEffect(() => {
     if (!travelData) return;
     const onKey = (e: KeyboardEvent) => {
@@ -72,7 +71,6 @@ const Index = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, [travelData, isDirty, handleSave]);
 
-  // Warn on accidental page close with unsaved changes
   useEffect(() => {
     if (!isDirty) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -83,140 +81,152 @@ const Index = () => {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [isDirty]);
 
-  const showSaveBar = (isDirty || saveState !== "idle") && !!travelData;
+  // ── Upload screen — full viewport, no header ──────────────────────────────
+  if (!travelData) {
+    return <PdfUpload onDataExtracted={setTravelData} />;
+  }
+
+  // ── App shell — header + sidebar + tabs ───────────────────────────────────
+  const showSaveBar = isDirty || saveState !== "idle";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
+
       {/* ── Header ── */}
       <header
-        className="sticky top-0 z-20 border-b border-border/50"
-        style={{ backdropFilter: "blur(12px)", background: "hsl(var(--background)/0.85)" }}
+        className="sticky top-0 z-20 border-b border-border/50 shrink-0"
+        style={{ backdropFilter: "blur(12px)", background: "hsl(var(--background)/0.92)" }}
       >
-        <div className="container mx-auto px-4 py-3 flex items-center gap-4">
+        <div className="px-5 py-3 flex items-center gap-4">
+
           {/* Brand */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0">
             <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center font-display font-black text-xs select-none shrink-0"
+              className="w-7 h-7 rounded-lg flex items-center justify-center font-display font-black select-none shrink-0"
               style={{
+                fontSize: 10,
                 background: "linear-gradient(135deg, #7C3AED 0%, #6B21A8 100%)",
                 color: "#fff",
-                boxShadow: "0 2px 8px rgba(107,33,168,0.4)",
+                boxShadow: "0 2px 8px rgba(107,33,168,0.45)",
               }}
             >
               BWT
             </div>
-            <div>
-              <h1 className="text-base font-display font-black uppercase tracking-widest leading-none" style={{ color: "hsl(var(--foreground))", letterSpacing: "0.1em" }}>
-                Studio
-              </h1>
-              <p className="text-xs text-muted-foreground hidden sm:block leading-none mt-0.5">
-                Crie materiais de marketing em segundos
-              </p>
+            <span
+              className="font-display font-black uppercase leading-none"
+              style={{ fontSize: 15, letterSpacing: "0.12em", color: "hsl(var(--foreground))" }}
+            >
+              Studio
+            </span>
+          </div>
+
+          {/* Destination pill */}
+          <div className="flex-1 flex justify-center">
+            <div
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+              style={{
+                background: "rgba(147,51,234,0.08)",
+                border: "1px solid rgba(147,51,234,0.2)",
+                color: "#9333EA",
+              }}
+            >
+              <Plane className="w-3 h-3" />
+              {travelData.destino}
             </div>
           </div>
 
-          {/* Destination badge (center) */}
-          {travelData && (
-            <div className="flex-1 flex justify-center">
-              <div
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
-                style={{ background: "rgba(147,51,234,0.1)", border: "1px solid rgba(147,51,234,0.25)", color: "#9333EA" }}
-              >
-                <Plane className="w-3 h-3" />
-                {travelData.destino}
-              </div>
-            </div>
-          )}
-
           {/* Actions */}
-          {travelData && (
-            <div className="flex items-center gap-2 shrink-0">
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Upload className="w-3.5 h-3.5" />
-                    Novo Upload
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Iniciar novo upload?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Todos os dados do orçamento atual serão perdidos. Esta ação não pode ser desfeita.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleNewUpload} style={{ background: "#9333EA", color: "#fff" }}>
-                      Sim, novo upload
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs h-8">
+                  <Upload className="w-3 h-3" />
+                  Novo Upload
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Iniciar novo upload?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Todos os dados do orçamento atual serão perdidos. Esta ação não pode ser desfeita.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleNewUpload}
+                    style={{ background: "#9333EA", color: "#fff" }}
+                  >
+                    Sim, novo upload
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
-        {!travelData ? (
-          <PdfUpload onDataExtracted={setTravelData} />
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 items-start">
+      {/* ── Main layout ── */}
+      <div className="flex-1 flex overflow-hidden">
 
-            {/* ── Left sidebar ── */}
-            <div className="lg:sticky lg:top-[73px] lg:max-h-[calc(100vh-89px)] lg:overflow-y-auto flex flex-col gap-4 pb-4">
-              <DataDashboard data={travelData} onChange={handleDataChange} />
-            </div>
-
-            {/* ── Right main: tabs ── */}
-            <div className="min-w-0">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-3 bg-muted/60 rounded-xl p-1 h-auto">
-                  <TabsTrigger
-                    value="lamina"
-                    className="flex items-center gap-1.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm py-2"
-                  >
-                    <Image className="w-3.5 h-3.5" />
-                    <span className="text-xs sm:text-sm font-medium">Lâmina</span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="video"
-                    className="flex items-center gap-1.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm py-2"
-                  >
-                    <Video className="w-3.5 h-3.5" />
-                    <span className="text-xs sm:text-sm font-medium">Vídeo</span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="script"
-                    className="flex items-center gap-1.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm py-2"
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span className="text-xs sm:text-sm font-medium">Script</span>
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="lamina" className="mt-6">
-                  <CanvasPreview key={`lamina-${contentKey}`} data={travelData} onDataChange={handleDataChange} />
-                </TabsContent>
-                <TabsContent value="video" className="mt-6">
-                  <VideoGenerator key={`video-${contentKey}`} data={travelData} />
-                </TabsContent>
-                <TabsContent value="script" className="mt-6">
-                  <ScriptGenerator key={`script-${contentKey}`} data={travelData} />
-                </TabsContent>
-              </Tabs>
-            </div>
+        {/* ── Sidebar ── */}
+        <aside
+          className="hidden lg:flex flex-col border-r border-border/50 shrink-0 overflow-y-auto"
+          style={{ width: 320 }}
+        >
+          <div className="p-4">
+            <DataDashboard data={travelData} onChange={handleDataChange} />
           </div>
-        )}
-      </main>
+        </aside>
 
-      {/* ── Compact floating save pill ── */}
+        {/* ── Content ── */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto px-6 py-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-3 bg-muted/60 rounded-xl p-1 h-auto mb-6">
+                <TabsTrigger
+                  value="lamina"
+                  className="flex items-center gap-1.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm py-2"
+                >
+                  <Image className="w-3.5 h-3.5" />
+                  <span className="text-sm font-medium">Lâmina</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="video"
+                  className="flex items-center gap-1.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm py-2"
+                >
+                  <Video className="w-3.5 h-3.5" />
+                  <span className="text-sm font-medium">Vídeo</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="script"
+                  className="flex items-center gap-1.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm py-2"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span className="text-sm font-medium">Script</span>
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="lamina">
+                <CanvasPreview key={`lamina-${contentKey}`} data={travelData} onDataChange={handleDataChange} />
+              </TabsContent>
+              <TabsContent value="video">
+                <VideoGenerator key={`video-${contentKey}`} data={travelData} />
+              </TabsContent>
+              <TabsContent value="script">
+                <ScriptGenerator key={`script-${contentKey}`} data={travelData} />
+              </TabsContent>
+            </Tabs>
+          </div>
+        </main>
+      </div>
+
+      {/* ── Floating save pill ── */}
       <div
         className="fixed bottom-4 right-4 z-30 transition-all duration-300 ease-in-out"
         style={{
           opacity: showSaveBar ? 1 : 0,
-          transform: showSaveBar ? "translateY(0) scale(1)" : "translateY(8px) scale(0.95)",
+          transform: showSaveBar ? "translateY(0) scale(1)" : "translateY(6px) scale(0.96)",
           pointerEvents: showSaveBar ? "auto" : "none",
         }}
       >
@@ -231,10 +241,14 @@ const Index = () => {
         ) : (
           <div
             className="flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg"
-            style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", backdropFilter: "blur(8px)" }}
+            style={{
+              background: "hsl(var(--card))",
+              border: "1px solid hsl(var(--border))",
+              backdropFilter: "blur(8px)",
+            }}
           >
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#f59e0b" }} />
-            <p className="text-xs text-muted-foreground">Alterações não salvas</p>
+            <span className="w-1.5 h-1.5 rounded-full shrink-0 animate-pulse" style={{ background: "#f59e0b" }} />
+            <p className="text-xs text-muted-foreground whitespace-nowrap">Alterações não salvas</p>
             <Button
               onClick={handleSave}
               disabled={saveState === "saving"}
