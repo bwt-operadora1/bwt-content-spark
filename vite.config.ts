@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => ({
   envPrefix: ["VITE_", "GEMINI_", "PEXELS_"],
   server: {
     host: "::",
-    port: 8080,
+    port: 8082,
     allowedHosts: ["conteudo.bwtoperadora.com.br"],
     hmr: false,
   },
