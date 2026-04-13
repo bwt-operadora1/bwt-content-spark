@@ -15,7 +15,8 @@
       "Bash(node -e \"var r = /[\\\\u2600-\\\\u27BF]/g; console.log\\('Hotel Rotorua inn Fortaleza'.replace\\(r,''\\).length\\);\")",
       "Bash(node -e \"var r = /[\\\\u1F000-\\\\u1FFFF]/g; console.log\\(r.test\\('Hotel Rotorua inn Fortaleza'\\)\\); var s = 'Hotel Rotorua inn Fortaleza'; console.log\\(s.replace\\(r,''\\).length\\);\")",
       "Bash(node -e \"var r = /[\\\\u{1F000}-\\\\u{1FFFF}]/gu; console.log\\('Hotel Rotorua inn Fortaleza'.replace\\(r,''\\).length\\);\")",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(command -v git)"
     ]
   }
 }
