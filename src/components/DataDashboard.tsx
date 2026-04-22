@@ -203,11 +203,10 @@ const DataDashboard = ({ data, onChange }: DataDashboardProps) => {
 
           {/* Calculated stats — lista vertical, sem quebra de texto */}
           <div
-            className="rounded-lg divide-y"
+            className="rounded-lg divide-y [&>*+*]:border-t"
             style={{
               background: "rgba(147,51,234,0.05)",
               border: "0.5px solid rgba(147,51,234,0.12)",
-              divideColor: "rgba(147,51,234,0.08)",
             }}
           >
             {[

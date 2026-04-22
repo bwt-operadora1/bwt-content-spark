@@ -38,6 +38,21 @@ const Index = () => {
     if (!travelData) return;
     setSaveState("saving");
     localStorage.setItem("bwt-session", JSON.stringify(travelData));
+    // Append/update entry in archive (hidden library at /arquivo)
+    try {
+      const raw = localStorage.getItem("bwt-archive");
+      const list: Array<{ id: string; savedAt: number; data: TravelData }> = raw ? JSON.parse(raw) : [];
+      const signature = `${travelData.destino}|${travelData.hotel}|${travelData.dataInicio || ""}`;
+      const existingIdx = list.findIndex(
+        (e) => `${e.data.destino}|${e.data.hotel}|${e.data.dataInicio || ""}` === signature,
+      );
+      const entry = { id: existingIdx >= 0 ? list[existingIdx].id : crypto.randomUUID(), savedAt: Date.now(), data: travelData };
+      if (existingIdx >= 0) list[existingIdx] = entry;
+      else list.unshift(entry);
+      localStorage.setItem("bwt-archive", JSON.stringify(list));
+    } catch {
+      // ignore storage errors
+    }
     setContentKey((k) => k + 1);
     setIsDirty(false);
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
