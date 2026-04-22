@@ -536,6 +536,88 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
           </div>
         )}
 
+        {/* Scene image manager */}
+        {status === "idle" && (
+          <div className="w-full max-w-2xl border border-border/60 rounded-xl p-4 bg-muted/30">
+            <div className="flex items-center gap-2 mb-3">
+              <ImageIcon className="w-4 h-4" style={{ color: "#9333EA" }} />
+              <h3 className="text-sm font-semibold">Imagens das cenas</h3>
+              <span className="text-xs text-muted-foreground">— troque por busca ou upload</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {SCENE_LABELS.map((label, idx) => {
+                const img = sceneImages[idx];
+                return (
+                  <div key={idx} className="flex gap-3 p-2 rounded-lg bg-background border border-border/40">
+                    <div
+                      className="w-16 h-24 rounded-md overflow-hidden bg-muted shrink-0 flex items-center justify-center"
+                      style={{
+                        backgroundImage: img ? `url(${img.src})` : undefined,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                    >
+                      {!img && <ImageIcon className="w-5 h-5 text-muted-foreground" />}
+                    </div>
+                    <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold" style={{ color: "#9333EA" }}>
+                          {idx + 1}
+                        </span>
+                        <span className="text-xs font-semibold">{label}</span>
+                      </div>
+                      <Input
+                        placeholder={`Buscar (ex: ${data.destino})`}
+                        value={searchTerms[idx]}
+                        onChange={(e) => {
+                          const next = [...searchTerms];
+                          next[idx] = e.target.value;
+                          setSearchTerms(next);
+                        }}
+                        className="h-7 text-xs"
+                      />
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs flex-1"
+                          onClick={() => handleReplaceScene(idx)}
+                          disabled={refreshingIdx === idx}
+                        >
+                          {refreshingIdx === idx ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-3 h-3" />
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs flex-1"
+                          onClick={() => fileInputRefs.current[idx]?.click()}
+                        >
+                          <Upload className="w-3 h-3" />
+                        </Button>
+                        <input
+                          ref={(el) => (fileInputRefs.current[idx] = el)}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handleUploadScene(idx, f);
+                            e.target.value = "";
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {status === "generating" && (
           <div className="flex flex-col items-center gap-3 w-full max-w-xs">
             <p className="text-sm text-muted-foreground">
