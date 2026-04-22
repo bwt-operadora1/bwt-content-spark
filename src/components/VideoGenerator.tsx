@@ -1,8 +1,10 @@
 import { useRef, useEffect, useState } from "react";
-import { Video, Play, Loader2, Download, X, CheckCircle2 } from "lucide-react";
+import { Video, Play, Loader2, Download, X, CheckCircle2, Upload, RefreshCw, ImageIcon } from "lucide-react";
 import { TravelData } from "@/types/travel";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useDestinationImages } from "@/hooks/useDestinationImage";
+import { fetchDestinationImages } from "@/lib/imageSearch";
 import { Muxer, ArrayBufferTarget } from "mp4-muxer";
 
 // ─── Canvas dimensions ────────────────────────────────────────────────────────
@@ -281,13 +283,75 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
   const [status, setStatus] = useState<Status>("idle");
   const [progress, setProgress] = useState(0);
   const [currentScene, setCurrentScene] = useState(0);
+  const [sceneImages, setSceneImages] = useState<(HTMLImageElement | null)[]>([]);
+  const [searchTerms, setSearchTerms] = useState<string[]>(["", "", "", "", ""]);
+  const [refreshingIdx, setRefreshingIdx] = useState<number | null>(null);
+  const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const { imageEls, loading: imageLoading } = useDestinationImages(data.destino, 5);
 
+  // Initialize sceneImages from auto-fetched images
+  useEffect(() => {
+    if (imageEls.length > 0) {
+      setSceneImages((prev) => {
+        const next = [...prev];
+        for (let i = 0; i < 5; i++) {
+          if (!next[i]) next[i] = imageEls[i % imageEls.length] ?? null;
+        }
+        return next;
+      });
+    }
+  }, [imageEls]);
+
   // Keep bgImagesRef in sync (refs don't trigger re-renders)
   useEffect(() => {
-    bgImagesRef.current = imageEls;
-  }, [imageEls]);
+    bgImagesRef.current = sceneImages.length > 0 ? sceneImages : imageEls;
+  }, [sceneImages, imageEls]);
+
+  const loadImageFromUrl = (url: string): Promise<HTMLImageElement | null> =>
+    new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+
+  const handleReplaceScene = async (idx: number) => {
+    const term = searchTerms[idx]?.trim() || data.destino;
+    setRefreshingIdx(idx);
+    try {
+      const urls = await fetchDestinationImages(term, 5);
+      // Pick a random one to give variety
+      const url = urls[Math.floor(Math.random() * urls.length)];
+      const img = await loadImageFromUrl(url);
+      if (img) {
+        setSceneImages((prev) => {
+          const next = [...prev];
+          next[idx] = img;
+          return next;
+        });
+      }
+    } finally {
+      setRefreshingIdx(null);
+    }
+  };
+
+  const handleUploadScene = (idx: number, file: File) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const url = e.target?.result as string;
+      const img = await loadImageFromUrl(url);
+      if (img) {
+        setSceneImages((prev) => {
+          const next = [...prev];
+          next[idx] = img;
+          return next;
+        });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // ── Preview animation loop (idle + done) ──────────────────────────────────
   useEffect(() => {
@@ -469,6 +533,88 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
               <Play className="w-4 h-4 mr-2" />
               Gerar Vídeo
             </Button>
+          </div>
+        )}
+
+        {/* Scene image manager */}
+        {status === "idle" && (
+          <div className="w-full max-w-2xl border border-border/60 rounded-xl p-4 bg-muted/30">
+            <div className="flex items-center gap-2 mb-3">
+              <ImageIcon className="w-4 h-4" style={{ color: "#9333EA" }} />
+              <h3 className="text-sm font-semibold">Imagens das cenas</h3>
+              <span className="text-xs text-muted-foreground">— troque por busca ou upload</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {SCENE_LABELS.map((label, idx) => {
+                const img = sceneImages[idx];
+                return (
+                  <div key={idx} className="flex gap-3 p-2 rounded-lg bg-background border border-border/40">
+                    <div
+                      className="w-16 h-24 rounded-md overflow-hidden bg-muted shrink-0 flex items-center justify-center"
+                      style={{
+                        backgroundImage: img ? `url(${img.src})` : undefined,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                    >
+                      {!img && <ImageIcon className="w-5 h-5 text-muted-foreground" />}
+                    </div>
+                    <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold" style={{ color: "#9333EA" }}>
+                          {idx + 1}
+                        </span>
+                        <span className="text-xs font-semibold">{label}</span>
+                      </div>
+                      <Input
+                        placeholder={`Buscar (ex: ${data.destino})`}
+                        value={searchTerms[idx]}
+                        onChange={(e) => {
+                          const next = [...searchTerms];
+                          next[idx] = e.target.value;
+                          setSearchTerms(next);
+                        }}
+                        className="h-7 text-xs"
+                      />
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs flex-1"
+                          onClick={() => handleReplaceScene(idx)}
+                          disabled={refreshingIdx === idx}
+                        >
+                          {refreshingIdx === idx ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-3 h-3" />
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs flex-1"
+                          onClick={() => fileInputRefs.current[idx]?.click()}
+                        >
+                          <Upload className="w-3 h-3" />
+                        </Button>
+                        <input
+                          ref={(el) => (fileInputRefs.current[idx] = el)}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handleUploadScene(idx, f);
+                            e.target.value = "";
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
