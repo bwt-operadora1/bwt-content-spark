@@ -283,13 +283,75 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
   const [status, setStatus] = useState<Status>("idle");
   const [progress, setProgress] = useState(0);
   const [currentScene, setCurrentScene] = useState(0);
+  const [sceneImages, setSceneImages] = useState<(HTMLImageElement | null)[]>([]);
+  const [searchTerms, setSearchTerms] = useState<string[]>(["", "", "", "", ""]);
+  const [refreshingIdx, setRefreshingIdx] = useState<number | null>(null);
+  const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const { imageEls, loading: imageLoading } = useDestinationImages(data.destino, 5);
 
+  // Initialize sceneImages from auto-fetched images
+  useEffect(() => {
+    if (imageEls.length > 0) {
+      setSceneImages((prev) => {
+        const next = [...prev];
+        for (let i = 0; i < 5; i++) {
+          if (!next[i]) next[i] = imageEls[i % imageEls.length] ?? null;
+        }
+        return next;
+      });
+    }
+  }, [imageEls]);
+
   // Keep bgImagesRef in sync (refs don't trigger re-renders)
   useEffect(() => {
-    bgImagesRef.current = imageEls;
-  }, [imageEls]);
+    bgImagesRef.current = sceneImages.length > 0 ? sceneImages : imageEls;
+  }, [sceneImages, imageEls]);
+
+  const loadImageFromUrl = (url: string): Promise<HTMLImageElement | null> =>
+    new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+
+  const handleReplaceScene = async (idx: number) => {
+    const term = searchTerms[idx]?.trim() || data.destino;
+    setRefreshingIdx(idx);
+    try {
+      const urls = await fetchDestinationImages(term, 5);
+      // Pick a random one to give variety
+      const url = urls[Math.floor(Math.random() * urls.length)];
+      const img = await loadImageFromUrl(url);
+      if (img) {
+        setSceneImages((prev) => {
+          const next = [...prev];
+          next[idx] = img;
+          return next;
+        });
+      }
+    } finally {
+      setRefreshingIdx(null);
+    }
+  };
+
+  const handleUploadScene = (idx: number, file: File) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const url = e.target?.result as string;
+      const img = await loadImageFromUrl(url);
+      if (img) {
+        setSceneImages((prev) => {
+          const next = [...prev];
+          next[idx] = img;
+          return next;
+        });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // ── Preview animation loop (idle + done) ──────────────────────────────────
   useEffect(() => {
