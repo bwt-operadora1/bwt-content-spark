@@ -1,8 +1,10 @@
 import { useRef, useEffect, useState } from "react";
-import { Video, Play, Loader2, Download, X, CheckCircle2 } from "lucide-react";
+import { Video, Play, Loader2, Download, X, CheckCircle2, Upload, RefreshCw, ImageIcon } from "lucide-react";
 import { TravelData } from "@/types/travel";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useDestinationImages } from "@/hooks/useDestinationImage";
+import { fetchDestinationImages } from "@/lib/imageSearch";
 import { Muxer, ArrayBufferTarget } from "mp4-muxer";
 
 // ─── Canvas dimensions ────────────────────────────────────────────────────────
