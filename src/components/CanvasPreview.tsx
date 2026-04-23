@@ -41,8 +41,28 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [feedState, setFeedState] = useState<LaminaState>(DEFAULT_LAMINA_STATE);
   const [storyState, setStoryState] = useState<LaminaState>(DEFAULT_LAMINA_STATE);
+  const [feedBgEl, setFeedBgEl] = useState<HTMLImageElement | null>(null);
+  const [storyBgEl, setStoryBgEl] = useState<HTMLImageElement | null>(null);
 
   const { imageEl, loading: imageLoading } = useDestinationImage(data.destino);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadBg = (url: string | undefined, setter: (img: HTMLImageElement | null) => void) => {
+      if (!url) {
+        setter(null);
+        return;
+      }
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => { if (!cancelled) setter(img); };
+      img.onerror = () => { if (!cancelled) setter(null); };
+      img.src = url;
+    };
+    loadBg(feedState.bgImageUrl || data.imageUrl, setFeedBgEl);
+    loadBg(storyState.bgImageUrl || data.imageUrl, setStoryBgEl);
+    return () => { cancelled = true; };
+  }, [feedState.bgImageUrl, storyState.bgImageUrl, data.imageUrl]);
 
   useEffect(() => {
     if (!feedRef.current) return;
@@ -52,9 +72,9 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
       document.fonts.load("800 48px 'Barlow Condensed'"),
     ]).then(() => {
       if (canvas)
-        drawFeed(canvas, data, FEED_W, FEED_H, imageEl, { laminaState: feedState });
+        drawFeed(canvas, data, FEED_W, FEED_H, feedBgEl ?? imageEl, { laminaState: feedState });
     });
-  }, [data, imageEl, feedState]);
+  }, [data, imageEl, feedBgEl, feedState]);
 
   useEffect(() => {
     if (!storyRef.current) return;
@@ -64,9 +84,9 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
       document.fonts.load("800 48px 'Barlow Condensed'"),
     ]).then(() => {
       if (canvas)
-        drawStory(canvas, data, STORY_W, STORY_H, imageEl, { laminaState: storyState });
+        drawStory(canvas, data, STORY_W, STORY_H, storyBgEl ?? imageEl, { laminaState: storyState });
     });
-  }, [data, imageEl, storyState]);
+  }, [data, imageEl, storyBgEl, storyState]);
 
   const handleExportFeed = async () => {
     if (!feedRef.current) return;

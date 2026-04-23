@@ -242,6 +242,7 @@ export default function LaminaEditor({ data, initialFeedState, initialStoryState
       img.onerror = () => setBgLoading(false);
       img.src = url;
       setCurState(prev => ({ ...prev, bgImageUrl: url }));
+      updateData({ imageUrl: url });
     };
     reader.readAsDataURL(file);
     e.target.value = "";
@@ -250,6 +251,7 @@ export default function LaminaEditor({ data, initialFeedState, initialStoryState
   const clearCustomBg = () => {
     setCustomBgEl(null);
     setCurState(prev => ({ ...prev, bgImageUrl: undefined }));
+    updateData({ imageUrl: undefined });
   };
 
   // ─── Export ───────────────────────────────────────────────────────────────
