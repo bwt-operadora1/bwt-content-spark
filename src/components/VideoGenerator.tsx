@@ -267,15 +267,22 @@ function drawVideoFrame(
 
 const SCENE_LABELS = ["Hook", "Produto", "Oferta", "Inclui", "CTA"];
 
+function updateSceneImageUrls(data: TravelData, idx: number, url: string): TravelData {
+  const nextUrls = [...(data.videoSceneImageUrls ?? [])];
+  nextUrls[idx] = url;
+  return { ...data, videoSceneImageUrls: nextUrls };
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 type Status = "idle" | "generating" | "done";
 
 interface VideoGeneratorProps {
   data: TravelData;
+  onDataChange?: (data: TravelData) => void;
 }
 
-const VideoGenerator = ({ data }: VideoGeneratorProps) => {
+const VideoGenerator = ({ data, onDataChange }: VideoGeneratorProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
   const bgImagesRef = useRef<(HTMLImageElement | null)[]>([]);
@@ -289,6 +296,21 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const { imageEls, loading: imageLoading } = useDestinationImages(data.destino, 5);
+
+  useEffect(() => {
+    let cancelled = false;
+    const urls = data.videoSceneImageUrls ?? [];
+    if (!urls.some(Boolean)) return;
+    Promise.all(urls.slice(0, 5).map((url) => url ? loadImageFromUrl(url) : Promise.resolve(null))).then((imgs) => {
+      if (cancelled) return;
+      setSceneImages((prev) => {
+        const next = [...prev];
+        imgs.forEach((img, idx) => { if (img) next[idx] = img; });
+        return next;
+      });
+    });
+    return () => { cancelled = true; };
+  }, [data.videoSceneImageUrls]);
 
   // Initialize sceneImages from auto-fetched images
   useEffect(() => {
@@ -331,6 +353,7 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
           next[idx] = img;
           return next;
         });
+        onDataChange?.(updateSceneImageUrls(data, idx, url));
       }
     } finally {
       setRefreshingIdx(null);
@@ -348,6 +371,7 @@ const VideoGenerator = ({ data }: VideoGeneratorProps) => {
           next[idx] = img;
           return next;
         });
+        onDataChange?.(updateSceneImageUrls(data, idx, url));
       }
     };
     reader.readAsDataURL(file);

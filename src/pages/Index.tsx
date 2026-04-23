@@ -226,7 +226,7 @@ const Index = () => {
                 <CanvasPreview key={`lamina-${contentKey}`} data={travelData} onDataChange={handleDataChange} />
               </TabsContent>
               <TabsContent value="video">
-                <VideoGenerator key={`video-${contentKey}`} data={travelData} />
+                <VideoGenerator key={`video-${contentKey}`} data={travelData} onDataChange={handleDataChange} />
               </TabsContent>
               <TabsContent value="script">
                 <ScriptGenerator key={`script-${contentKey}`} data={travelData} />
