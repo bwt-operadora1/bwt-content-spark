@@ -338,7 +338,8 @@ export function getDestinationContext(destino: string): DestinationContext {
       if (d.includes(alias) || alias.includes(d)) return { ...dest };
     }
   }
-  return { ...DEFAULT_CONTEXT, name: destino };
+  const fallbackName = destino.trim() || DEFAULT_CONTEXT.name;
+  return { ...DEFAULT_CONTEXT, name: fallbackName, imageKeyword: `${fallbackName} trip` };
 }
 
 export function getUnsplashUrl(context: DestinationContext, width = 1080, height = 600): string {
