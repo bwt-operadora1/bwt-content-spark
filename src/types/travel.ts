@@ -26,6 +26,7 @@ export interface TravelData {
   regime: string;
   roteiro: string[];
   imageUrl?: string;
+  videoSceneImageUrls?: string[];
   desconto?: string;
   dataInicio?: string;
   dataFim?: string;
