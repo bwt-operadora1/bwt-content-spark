@@ -567,16 +567,16 @@ export function drawStory(
   }
 
   // Footer
-  const footerY = H - Math.round(H * 0.085);
+  const footerY = H - Math.round(H * 0.066);
   ctx.strokeStyle = "rgba(167,139,250,0.2)"; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(0, footerY); ctx.lineTo(W, footerY); ctx.stroke();
   ctx.fillStyle = "#ddd6fe"; ctx.font = `700 ${Math.round(H * 0.016)}px sans-serif`;
   ctx.textAlign = "center";
   ctx.fillText("UM PRODUTO BWT OPERADORA", W / 2, footerY + Math.round(H * 0.024));
   const condY = footerY + Math.round(H * 0.030);
-  ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = `${Math.round(H * 0.0095)}px sans-serif`;
+  ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = `${Math.round(H * 0.0085)}px sans-serif`;
   ctx.textAlign = "left";
-  wrapText(ctx, `${COND_PADRAO} ${IMAGE_DISCLAIMER}`, Math.round(W * 0.018), condY + Math.round(H * 0.006), W - Math.round(W * 0.036), Math.round(H * 0.012));
+  wrapText(ctx, `${COND_PADRAO} ${IMAGE_DISCLAIMER}`, Math.round(W * 0.018), condY + Math.round(H * 0.004), W - Math.round(W * 0.036), Math.round(H * 0.0105));
   // Custom texts
   for (const ct of (st?.customTexts ?? [])) {
     ctx.save();
