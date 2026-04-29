@@ -4,6 +4,7 @@ import { TravelData } from "@/types/travel";
 import { Button } from "@/components/ui/button";
 import { useDestinationImage } from "@/hooks/useDestinationImage";
 import { drawFeed, drawStory, LaminaState, DEFAULT_LAMINA_STATE, IMAGE_DISCLAIMER } from "@/lib/laminaRenderer";
+import { saveArchiveEntry } from "@/lib/archive";
 import LaminaEditor from "./LaminaEditor";
 
 interface CanvasPreviewProps {
@@ -107,6 +108,7 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
     if (!feedRef.current) return;
     setExportingFeed(true);
     try {
+      saveArchiveEntry(data, "Feed PNG");
       feedRef.current.toBlob((blob) => {
         if (!blob) return;
         const url = URL.createObjectURL(blob);
@@ -125,6 +127,7 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
     if (!storyRef.current) return;
     setExportingStory(true);
     try {
+      saveArchiveEntry(data, "Story PNG");
       storyRef.current.toBlob((blob) => {
         if (!blob) return;
         const url = URL.createObjectURL(blob);

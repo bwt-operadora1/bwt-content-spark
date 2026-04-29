@@ -7,6 +7,7 @@ import {
   LaminaState, LaminaStyles, ElemKey, CustomText, HitRegion, DrawOpts,
   DEFAULT_LAMINA_STATE, scaleLaminaState,
 } from "@/lib/laminaRenderer";
+import { saveArchiveEntry } from "@/lib/archive";
 import { useDestinationImage } from "@/hooks/useDestinationImage";
 
 // ─── Element metadata ─────────────────────────────────────────────────────────
@@ -266,6 +267,7 @@ export default function LaminaEditor({ data, initialFeedState, initialStoryState
       const scaledState = scaleLaminaState(curState, CANVAS_W, exportW);
       const fn = format === "feed" ? drawFeed : drawStory;
       fn(exportCanvas, localData, exportW, exportH, bgImage, { laminaState: scaledState });
+      saveArchiveEntry(localData, format === "feed" ? "Feed PNG" : "Story PNG");
       exportCanvas.toBlob((blob) => {
         if (!blob) return;
         const url = URL.createObjectURL(blob);
