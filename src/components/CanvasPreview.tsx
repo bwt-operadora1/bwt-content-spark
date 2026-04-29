@@ -148,6 +148,29 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
           <h2 className="text-2xl font-display font-semibold">Lâminas</h2>
         </div>
 
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-3">
+          <p className="text-xs text-muted-foreground text-center sm:text-left">
+            {IMAGE_DISCLAIMER}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => imageUploadRef.current?.click()}
+            className="gap-2 shrink-0"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            Trocar imagem
+          </Button>
+          <input
+            ref={imageUploadRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageUpload}
+          />
+        </div>
+
         {/* Preview grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* ── Feed ── */}
@@ -241,28 +264,6 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
           </Button>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-3">
-          <p className="text-xs text-muted-foreground text-center sm:text-left">
-            {IMAGE_DISCLAIMER}
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => imageUploadRef.current?.click()}
-            className="gap-2 shrink-0"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            Trocar imagem
-          </Button>
-          <input
-            ref={imageUploadRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleImageUpload}
-          />
-        </div>
       </div>
 
       {editorOpen && (
