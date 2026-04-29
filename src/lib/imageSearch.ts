@@ -24,6 +24,18 @@ export async function fetchDestinationImage(keyword: string): Promise<string | n
  * Falls back to picsum.photos if Pexels is unavailable.
  */
 export async function fetchDestinationImages(keyword: string, count: number = 3): Promise<string[]> {
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data, error } = await supabase.functions.invoke("search-images", {
+      body: { keyword, count },
+    });
+    if (!error && Array.isArray(data?.urls) && data.urls.length > 0) {
+      return data.urls.slice(0, count);
+    }
+  } catch {
+    // fall through to local fallback/direct key path
+  }
+
   if (PEXELS_API_KEY) {
     for (const query of buildPexelsQueries(keyword)) {
       try {
