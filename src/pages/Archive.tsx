@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ARCHIVE_STORAGE_KEY, ArchiveEntry, loadArchiveEntries } from "@/lib/archive";
-import { Plane, Hotel, Building2, Trash2, Search, Calendar } from "lucide-react";
+import { Plane, Hotel, Building2, Trash2, Search, Calendar, Image, Video, FileText } from "lucide-react";
 
 const Archive = () => {
   const [entries, setEntries] = useState<ArchiveEntry[]>([]);
@@ -56,6 +56,15 @@ const Archive = () => {
     }
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [filtered, groupBy]);
+
+  const outputStats = useMemo(() => {
+    const allOutputs = entries.flatMap((entry) => entry.outputs ?? []);
+    return {
+      budgets: allOutputs.filter((output) => output.includes("Orçamento")).length,
+      laminas: allOutputs.filter((output) => output.includes("Lâmina") || output.includes("Feed") || output.includes("Story")).length,
+      videos: allOutputs.filter((output) => output.includes("Vídeo")).length,
+    };
+  }, [entries]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -134,6 +143,22 @@ const Archive = () => {
           </p>
         ) : (
           <div className="space-y-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                { label: "Orçamentos gerados", value: outputStats.budgets, icon: FileText },
+                { label: "Lâminas usadas", value: outputStats.laminas, icon: Image },
+                { label: "Vídeos exportados", value: outputStats.videos, icon: Video },
+              ].map(({ label, value, icon: Icon }) => (
+                <Card key={label} className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+                    <p className="font-display font-bold text-2xl mt-1">{value}</p>
+                  </div>
+                  <Icon className="w-5 h-5 text-primary" />
+                </Card>
+              ))}
+            </div>
+
             {grouped.map(([groupKey, items]) => (
               <section key={groupKey}>
                 <div className="flex items-center gap-2 mb-3">

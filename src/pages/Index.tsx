@@ -35,6 +35,16 @@ const Index = () => {
     setSaveState("idle");
   }, []);
 
+  const handleDataExtracted = useCallback((data: TravelData) => {
+    setTravelData(data);
+    try {
+      saveArchiveEntry(data, "Orçamento gerado");
+      saveArchiveEntry(data, "Lâmina gerada");
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
   const handleSave = useCallback(() => {
     if (!travelData) return;
     setSaveState("saving");
@@ -89,7 +99,7 @@ const Index = () => {
 
   // ── Upload screen — full viewport, no header ──────────────────────────────
   if (!travelData) {
-    return <PdfUpload onDataExtracted={setTravelData} />;
+    return <PdfUpload onDataExtracted={handleDataExtracted} />;
   }
 
   // ── App shell — header + sidebar + tabs ───────────────────────────────────
