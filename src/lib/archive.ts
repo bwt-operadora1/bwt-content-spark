@@ -9,6 +9,8 @@ export interface ArchiveEntry {
 
 export const ARCHIVE_STORAGE_KEY = "bwt-archive";
 
+const makeSignature = (data: TravelData) => `${data.destino}|${data.hotel}|${data.dataInicio || ""}`;
+
 export function loadArchiveEntries(): ArchiveEntry[] {
   try {
     const raw = localStorage.getItem(ARCHIVE_STORAGE_KEY);
@@ -22,9 +24,9 @@ export function loadArchiveEntries(): ArchiveEntry[] {
 
 export function saveArchiveEntry(data: TravelData, output?: string): ArchiveEntry[] {
   const list = loadArchiveEntries();
-  const signature = `${data.destino}|${data.hotel}|${data.dataInicio || ""}`;
+  const signature = makeSignature(data);
   const existingIdx = list.findIndex(
-    (entry) => `${entry.data.destino}|${entry.data.hotel}|${entry.data.dataInicio || ""}` === signature,
+    (entry) => makeSignature(entry.data) === signature,
   );
   const previous = existingIdx >= 0 ? list[existingIdx] : undefined;
   const outputs = Array.from(new Set([...(previous?.outputs ?? []), output].filter(Boolean) as string[]));
@@ -37,5 +39,57 @@ export function saveArchiveEntry(data: TravelData, output?: string): ArchiveEntr
   if (existingIdx >= 0) list[existingIdx] = entry;
   else list.unshift(entry);
   localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(list));
+  void syncArchiveEntry(entry, output);
   return list;
+}
+
+async function syncArchiveEntry(entry: ArchiveEntry, output?: string) {
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    await supabase.functions.invoke("archive-records", {
+      body: { action: "upsert", entry, output },
+    });
+  } catch {
+    // local archive remains available if backend sync is unavailable
+  }
+}
+
+export async function loadArchiveEntriesFromCloud(): Promise<ArchiveEntry[]> {
+  const local = loadArchiveEntries();
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data, error } = await supabase
+      .from("content_archive" as never)
+      .select("id, updated_at, data, outputs" as never)
+      .order("updated_at" as never, { ascending: false });
+    if (error || !Array.isArray(data)) return local;
+    const cloudEntries = data.map((row: any) => ({
+      id: row.id,
+      savedAt: new Date(row.updated_at).getTime(),
+      data: row.data as TravelData,
+      outputs: row.outputs ?? [],
+    }));
+    localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(cloudEntries));
+    return cloudEntries;
+  } catch {
+    return local;
+  }
+}
+
+export async function deleteArchiveEntry(id: string) {
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    await supabase.functions.invoke("archive-records", { body: { action: "delete", id } });
+  } catch {
+    // ignore backend delete errors
+  }
+}
+
+export async function clearArchiveEntries() {
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    await supabase.functions.invoke("archive-records", { body: { action: "clear" } });
+  } catch {
+    // ignore backend clear errors
+  }
 }
