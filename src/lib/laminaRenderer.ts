@@ -573,10 +573,10 @@ export function drawStory(
   ctx.fillStyle = "#ddd6fe"; ctx.font = `700 ${Math.round(H * 0.016)}px sans-serif`;
   ctx.textAlign = "center";
   ctx.fillText("UM PRODUTO BWT OPERADORA", W / 2, footerY + Math.round(H * 0.024));
-  const condY = footerY + Math.round(H * 0.038);
+  const condY = footerY + Math.round(H * 0.032);
   ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = `${Math.round(H * 0.0095)}px sans-serif`;
   ctx.textAlign = "left";
-  wrapText(ctx, `${IMAGE_DISCLAIMER} ${COND_PADRAO}`, Math.round(W * 0.018), condY + Math.round(H * 0.012), W - Math.round(W * 0.036), Math.round(H * 0.013));
+  wrapText(ctx, `${COND_PADRAO} ${IMAGE_DISCLAIMER}`, Math.round(W * 0.018), condY + Math.round(H * 0.008), W - Math.round(W * 0.036), Math.round(H * 0.013));
   // Custom texts
   for (const ct of (st?.customTexts ?? [])) {
     ctx.save();
@@ -859,10 +859,10 @@ export function drawFeed(
   ctx.fillStyle = "#ddd6fe"; ctx.font = `700 ${Math.round(H * 0.016)}px sans-serif`;
   ctx.textAlign = "center";
   ctx.fillText("UM PRODUTO BWT OPERADORA", W / 2, footerY + Math.round(H * 0.024));
-  const condY = footerY + Math.round(H * 0.036);
+  const condY = footerY + Math.round(H * 0.031);
   ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = `${Math.round(H * 0.0095)}px sans-serif`;
   ctx.textAlign = "left";
-  wrapText(ctx, `${IMAGE_DISCLAIMER} ${COND_PADRAO}`, Math.round(W * 0.018), condY + Math.round(H * 0.01), W - Math.round(W * 0.036), Math.round(H * 0.013));
+  wrapText(ctx, `${COND_PADRAO} ${IMAGE_DISCLAIMER}`, Math.round(W * 0.018), condY + Math.round(H * 0.007), W - Math.round(W * 0.036), Math.round(H * 0.013));
   // Custom texts
   for (const ct of (st?.customTexts ?? [])) {
     ctx.save();
