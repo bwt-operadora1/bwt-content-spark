@@ -1,9 +1,9 @@
-import { Download, Image as ImageIcon, RefreshCw, Edit2 } from "lucide-react";
+import { Download, Image as ImageIcon, RefreshCw, Edit2, Upload } from "lucide-react";
 import { useRef, useEffect, useState } from "react";
 import { TravelData } from "@/types/travel";
 import { Button } from "@/components/ui/button";
 import { useDestinationImage } from "@/hooks/useDestinationImage";
-import { drawFeed, drawStory, LaminaState, DEFAULT_LAMINA_STATE } from "@/lib/laminaRenderer";
+import { drawFeed, drawStory, LaminaState, DEFAULT_LAMINA_STATE, IMAGE_DISCLAIMER } from "@/lib/laminaRenderer";
 import LaminaEditor from "./LaminaEditor";
 
 interface CanvasPreviewProps {
@@ -35,6 +35,7 @@ const CanvasSkeleton = ({ width, height }: { width: number; height: number }) =>
 const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
   const storyRef = useRef<HTMLCanvasElement>(null);
   const feedRef = useRef<HTMLCanvasElement>(null);
+  const imageUploadRef = useRef<HTMLInputElement>(null);
 
   const [exportingStory, setExportingStory] = useState(false);
   const [exportingFeed, setExportingFeed] = useState(false);
@@ -45,6 +46,20 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
   const [storyBgEl, setStoryBgEl] = useState<HTMLImageElement | null>(null);
 
   const { imageEl, loading: imageLoading } = useDestinationImage(data.destino);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const url = ev.target?.result as string;
+      setFeedState((prev) => ({ ...prev, bgImageUrl: url }));
+      setStoryState((prev) => ({ ...prev, bgImageUrl: url }));
+      onDataChange?.({ ...data, imageUrl: url });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -224,6 +239,29 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
             <Edit2 className="w-4 h-4" />
             Abrir Editor Avançado
           </Button>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-3">
+          <p className="text-xs text-muted-foreground text-center sm:text-left">
+            {IMAGE_DISCLAIMER}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => imageUploadRef.current?.click()}
+            className="gap-2 shrink-0"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            Trocar imagem
+          </Button>
+          <input
+            ref={imageUploadRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageUpload}
+          />
         </div>
       </div>
 
