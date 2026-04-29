@@ -576,7 +576,7 @@ export function drawStory(
   const condY = footerY + Math.round(H * 0.038);
   ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = `${Math.round(H * 0.0095)}px sans-serif`;
   ctx.textAlign = "left";
-  wrapText(ctx, COND_PADRAO, Math.round(W * 0.018), condY + Math.round(H * 0.012), W - Math.round(W * 0.036), Math.round(H * 0.013));
+  wrapText(ctx, `${IMAGE_DISCLAIMER} ${COND_PADRAO}`, Math.round(W * 0.018), condY + Math.round(H * 0.012), W - Math.round(W * 0.036), Math.round(H * 0.013));
   // Custom texts
   for (const ct of (st?.customTexts ?? [])) {
     ctx.save();
@@ -862,7 +862,7 @@ export function drawFeed(
   const condY = footerY + Math.round(H * 0.036);
   ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = `${Math.round(H * 0.0095)}px sans-serif`;
   ctx.textAlign = "left";
-  wrapText(ctx, COND_PADRAO, Math.round(W * 0.018), condY + Math.round(H * 0.01), W - Math.round(W * 0.036), Math.round(H * 0.013));
+  wrapText(ctx, `${IMAGE_DISCLAIMER} ${COND_PADRAO}`, Math.round(W * 0.018), condY + Math.round(H * 0.01), W - Math.round(W * 0.036), Math.round(H * 0.013));
   // Custom texts
   for (const ct of (st?.customTexts ?? [])) {
     ctx.save();
