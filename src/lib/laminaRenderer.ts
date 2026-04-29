@@ -573,10 +573,10 @@ export function drawStory(
   ctx.fillStyle = "#ddd6fe"; ctx.font = `700 ${Math.round(H * 0.016)}px sans-serif`;
   ctx.textAlign = "center";
   ctx.fillText("UM PRODUTO BWT OPERADORA", W / 2, footerY + Math.round(H * 0.024));
-  const condY = footerY + Math.round(H * 0.030);
-  ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = `${Math.round(H * 0.0085)}px sans-serif`;
+  const condY = footerY + Math.round(H * 0.036);
+  ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = `${Math.round(H * 0.008)}px sans-serif`;
   ctx.textAlign = "left";
-  wrapText(ctx, `${COND_PADRAO} ${IMAGE_DISCLAIMER}`, Math.round(W * 0.018), condY + Math.round(H * 0.004), W - Math.round(W * 0.036), Math.round(H * 0.0105));
+  wrapText(ctx, `${COND_PADRAO} ${IMAGE_DISCLAIMER}`, Math.round(W * 0.018), condY + Math.round(H * 0.006), W - Math.round(W * 0.036), Math.round(H * 0.0098));
   // Custom texts
   for (const ct of (st?.customTexts ?? [])) {
     ctx.save();
