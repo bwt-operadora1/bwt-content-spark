@@ -19,6 +19,17 @@ export interface DestinationContext {
 const DESTINATIONS: DestinationContext[] = [
   // ─── Brasil ───────────────────────────────────────────────────────────────
   {
+    name: "João Pessoa",
+    aliases: ["joão pessoa", "joao pessoa", "jampa", "tambaú", "tambau", "cabo branco", "paraíba", "paraiba"],
+    country: "Brasil",
+    description: "Praias urbanas, piscinas naturais e o pôr do sol mais famoso da Paraíba",
+    highlights: ["Praia de Tambaú", "Cabo Branco", "Piscinas naturais do Seixas", "Pôr do sol do Jacaré"],
+    imageKeyword: "Joao Pessoa Paraiba Brazil beach Cabo Branco Tambau",
+    unsplashId: "cTFhub2BhaM",
+    palette: { sky: "#87d4ea", water: "#20a0b8", sand: "#f0e4b0", palm: "#1a7a30", accent: "#00b4c8" },
+    emoji: "🌅",
+  },
+  {
     name: "Fortaleza",
     aliases: ["fortaleza", "meireles", "praia de iracema", "praia do futuro", "cumbuco"],
     country: "Brasil",
@@ -331,11 +342,17 @@ const DEFAULT_CONTEXT: DestinationContext = {
 };
 
 export function getDestinationContext(destino: string): DestinationContext {
-  const d = destino.toLowerCase().trim();
+  const normalize = (text: string) => text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+  const d = normalize(destino);
   for (const dest of DESTINATIONS) {
-    if (dest.name.toLowerCase() === d) return { ...dest };
+    if (normalize(dest.name) === d) return { ...dest };
     for (const alias of dest.aliases) {
-      if (d.includes(alias) || alias.includes(d)) return { ...dest };
+      const a = normalize(alias);
+      if (d.includes(a) || a.includes(d)) return { ...dest };
     }
   }
   const fallbackName = destino.trim() || DEFAULT_CONTEXT.name;
