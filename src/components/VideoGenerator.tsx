@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDestinationImages } from "@/hooks/useDestinationImage";
 import { fetchDestinationImages } from "@/lib/imageSearch";
+import { saveArchiveEntry } from "@/lib/archive";
 import { IMAGE_DISCLAIMER } from "@/lib/laminaRenderer";
 import { Muxer, ArrayBufferTarget } from "mp4-muxer";
 
@@ -483,6 +484,7 @@ const VideoGenerator = ({ data, onDataChange }: VideoGeneratorProps) => {
 
     const { buffer } = muxer.target;
     const blob = new Blob([buffer], { type: "video/mp4" });
+    saveArchiveEntry(data, "Vídeo exportado");
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
