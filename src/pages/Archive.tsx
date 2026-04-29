@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ARCHIVE_STORAGE_KEY, ArchiveEntry, loadArchiveEntries } from "@/lib/archive";
+import { ARCHIVE_STORAGE_KEY, ArchiveEntry, clearArchiveEntries, deleteArchiveEntry, loadArchiveEntriesFromCloud } from "@/lib/archive";
 import { Plane, Hotel, Building2, Trash2, Search, Calendar, Image, Video, FileText } from "lucide-react";
 
 const Archive = () => {
@@ -13,19 +13,21 @@ const Archive = () => {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    setEntries(loadArchiveEntries());
+    loadArchiveEntriesFromCloud().then(setEntries);
   }, []);
 
   const handleDelete = (id: string) => {
     const next = entries.filter((e) => e.id !== id);
     setEntries(next);
     localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(next));
+    void deleteArchiveEntry(id);
   };
 
   const handleClearAll = () => {
     if (!confirm("Apagar todo o arquivo? Esta ação não pode ser desfeita.")) return;
     localStorage.removeItem(ARCHIVE_STORAGE_KEY);
     setEntries([]);
+    void clearArchiveEntries();
   };
 
   const filtered = useMemo(() => {
