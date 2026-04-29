@@ -62,6 +62,9 @@ export interface DrawOpts {
 export const COND_PADRAO =
   "Valores por pessoa em Reais. Sujeito a disponibilidade e alterações sem prévio aviso. Parcelamento em até 10x, respeitando parcela mínima de R$ 150,00. Nos reservamos o direito a correções de possíveis erros de digitação. Consulte regras gerais em www.bwtoperadora.com.br";
 
+export const IMAGE_DISCLAIMER =
+  "Imagens meramente ilustrativas e podem não representar o produto ou destino vendido.";
+
 const PALETTES: Record<string, [string, string, string, string]> = {
   cancun:              ["#87ceeb", "#00bcd4", "#f4d03f", "#1a6e30"],
   "cancún":            ["#87ceeb", "#00bcd4", "#f4d03f", "#1a6e30"],
@@ -573,7 +576,7 @@ export function drawStory(
   const condY = footerY + Math.round(H * 0.038);
   ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = `${Math.round(H * 0.0095)}px sans-serif`;
   ctx.textAlign = "left";
-  wrapText(ctx, COND_PADRAO, Math.round(W * 0.018), condY + Math.round(H * 0.012), W - Math.round(W * 0.036), Math.round(H * 0.013));
+  wrapText(ctx, `${IMAGE_DISCLAIMER} ${COND_PADRAO}`, Math.round(W * 0.018), condY + Math.round(H * 0.012), W - Math.round(W * 0.036), Math.round(H * 0.013));
   // Custom texts
   for (const ct of (st?.customTexts ?? [])) {
     ctx.save();
@@ -859,7 +862,7 @@ export function drawFeed(
   const condY = footerY + Math.round(H * 0.036);
   ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = `${Math.round(H * 0.0095)}px sans-serif`;
   ctx.textAlign = "left";
-  wrapText(ctx, COND_PADRAO, Math.round(W * 0.018), condY + Math.round(H * 0.01), W - Math.round(W * 0.036), Math.round(H * 0.013));
+  wrapText(ctx, `${IMAGE_DISCLAIMER} ${COND_PADRAO}`, Math.round(W * 0.018), condY + Math.round(H * 0.01), W - Math.round(W * 0.036), Math.round(H * 0.013));
   // Custom texts
   for (const ct of (st?.customTexts ?? [])) {
     ctx.save();

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDestinationImages } from "@/hooks/useDestinationImage";
 import { fetchDestinationImages } from "@/lib/imageSearch";
+import { IMAGE_DISCLAIMER } from "@/lib/laminaRenderer";
 import { Muxer, ArrayBufferTarget } from "mp4-muxer";
 
 // ─── Canvas dimensions ────────────────────────────────────────────────────────
@@ -54,6 +55,23 @@ function wrapLeft(
   if (line) lines.push(line);
   lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineH));
   return y + lines.length * lineH;
+}
+
+function drawCenteredSmallText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number, lineH: number) {
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let line = "";
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    if (ctx.measureText(test).width > maxW && line) {
+      lines.push(line);
+      line = w;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  lines.slice(0, 2).forEach((l, i) => ctx.fillText(l, x, y + i * lineH));
 }
 
 function getSceneAt(t: number): { idx: number; progress: number } {
@@ -263,6 +281,11 @@ function drawVideoFrame(
     ctx.fillText(data.companhiaAerea.toUpperCase(), W / 2, rowY + pPillH + Math.round(H * 0.052));
     noShadow();
   }
+
+  ctx.fillStyle = "rgba(255,255,255,0.48)";
+  ctx.font = `500 ${Math.round(H * 0.009)}px sans-serif`;
+  ctx.textAlign = "center";
+  drawCenteredSmallText(ctx, IMAGE_DISCLAIMER, W / 2, H - Math.round(H * 0.024), W * 0.88, Math.round(H * 0.012));
 }
 
 const SCENE_LABELS = ["Hook", "Produto", "Oferta", "Inclui", "CTA"];
