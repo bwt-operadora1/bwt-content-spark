@@ -4,27 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TravelData } from "@/types/travel";
+import { ARCHIVE_STORAGE_KEY, ArchiveEntry, loadArchiveEntries } from "@/lib/archive";
 import { Plane, Hotel, Building2, Trash2, Search, Calendar } from "lucide-react";
-
-interface ArchiveEntry {
-  id: string;
-  savedAt: number;
-  data: TravelData;
-}
-
-const STORAGE_KEY = "bwt-archive";
-
-function loadArchive(): ArchiveEntry[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
 
 const Archive = () => {
   const [entries, setEntries] = useState<ArchiveEntry[]>([]);
@@ -32,18 +13,18 @@ const Archive = () => {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    setEntries(loadArchive());
+    setEntries(loadArchiveEntries());
   }, []);
 
   const handleDelete = (id: string) => {
     const next = entries.filter((e) => e.id !== id);
     setEntries(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(next));
   };
 
   const handleClearAll = () => {
     if (!confirm("Apagar todo o arquivo? Esta ação não pode ser desfeita.")) return;
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(ARCHIVE_STORAGE_KEY);
     setEntries([]);
   };
 
@@ -193,6 +174,15 @@ const Archive = () => {
                           <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Calendar className="w-3 h-3" />
                             <span>{entry.data.duracao} • {entry.data.regime}</span>
+                          </div>
+                        )}
+                        {entry.outputs && entry.outputs.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-1">
+                            {entry.outputs.map((output) => (
+                              <Badge key={output} variant="outline" className="text-[9px] px-1.5 py-0">
+                                {output}
+                              </Badge>
+                            ))}
                           </div>
                         )}
                       </div>
