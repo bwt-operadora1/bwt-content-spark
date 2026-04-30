@@ -8,6 +8,7 @@ import { fetchDestinationImages } from "@/lib/imageSearch";
 import { saveArchiveEntry } from "@/lib/archive";
 import { IMAGE_DISCLAIMER } from "@/lib/laminaRenderer";
 import { loadImageNoTaint } from "@/lib/imageLoader";
+import { compressImageToDataUrl } from "@/lib/imageCompress";
 import { toast } from "@/hooks/use-toast";
 import { Muxer, ArrayBufferTarget } from "mp4-muxer";
 
@@ -380,10 +381,9 @@ const VideoGenerator = ({ data, onDataChange }: VideoGeneratorProps) => {
     }
   };
 
-  const handleUploadScene = (idx: number, file: File) => {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const url = e.target?.result as string;
+  const handleUploadScene = async (idx: number, file: File) => {
+    try {
+      const url = await compressImageToDataUrl(file);
       const img = await loadImageFromUrl(url);
       if (img) {
         setSceneImages((prev) => {
@@ -393,8 +393,10 @@ const VideoGenerator = ({ data, onDataChange }: VideoGeneratorProps) => {
         });
         onDataChange?.(updateSceneImageUrls(data, idx, url));
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("[VideoGenerator] scene upload failed", err);
+      toast({ title: "Falha no upload", description: "Não foi possível processar a imagem.", variant: "destructive" });
+    }
   };
 
   // ── Preview animation loop (idle + done) ──────────────────────────────────

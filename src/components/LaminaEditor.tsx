@@ -10,6 +10,7 @@ import {
 import { saveArchiveEntry } from "@/lib/archive";
 import { useDestinationImage } from "@/hooks/useDestinationImage";
 import { loadImageNoTaint } from "@/lib/imageLoader";
+import { compressImageToDataUrl } from "@/lib/imageCompress";
 import { toast } from "@/hooks/use-toast";
 
 // ─── Element metadata ─────────────────────────────────────────────────────────
@@ -233,21 +234,23 @@ export default function LaminaEditor({ data, initialFeedState, initialStoryState
 
   // ─── Background image upload ──────────────────────────────────────────────
 
-  const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
     setBgLoading(true);
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const url = ev.target?.result as string;
+    try {
+      const url = await compressImageToDataUrl(file);
       const img = await loadImageNoTaint(url);
       if (img) setCustomBgEl(img);
-      setBgLoading(false);
       setCurState(prev => ({ ...prev, bgImageUrl: url }));
       updateData({ imageUrl: url });
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
+    } catch (err) {
+      console.error("[LaminaEditor] bg upload failed", err);
+      toast({ title: "Falha no upload", description: "Não foi possível processar a imagem.", variant: "destructive" });
+    } finally {
+      setBgLoading(false);
+    }
   };
 
   const clearCustomBg = () => {
