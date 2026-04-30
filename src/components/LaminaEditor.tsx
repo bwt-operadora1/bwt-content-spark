@@ -9,6 +9,8 @@ import {
 } from "@/lib/laminaRenderer";
 import { saveArchiveEntry } from "@/lib/archive";
 import { useDestinationImage } from "@/hooks/useDestinationImage";
+import { loadImageNoTaint } from "@/lib/imageLoader";
+import { toast } from "@/hooks/use-toast";
 
 // ─── Element metadata ─────────────────────────────────────────────────────────
 
@@ -236,12 +238,11 @@ export default function LaminaEditor({ data, initialFeedState, initialStoryState
     if (!file) return;
     setBgLoading(true);
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const url = ev.target?.result as string;
-      const img = new Image();
-      img.onload = () => { setCustomBgEl(img); setBgLoading(false); };
-      img.onerror = () => setBgLoading(false);
-      img.src = url;
+      const img = await loadImageNoTaint(url);
+      if (img) setCustomBgEl(img);
+      setBgLoading(false);
       setCurState(prev => ({ ...prev, bgImageUrl: url }));
       updateData({ imageUrl: url });
     };
@@ -269,7 +270,11 @@ export default function LaminaEditor({ data, initialFeedState, initialStoryState
       fn(exportCanvas, localData, exportW, exportH, bgImage, { laminaState: scaledState });
       saveArchiveEntry(localData, format === "feed" ? "Feed PNG" : "Story PNG");
       exportCanvas.toBlob((blob) => {
-        if (!blob) return;
+        setExporting(false);
+        if (!blob) {
+          toast({ title: "Falha ao exportar", description: "Não foi possível gerar o PNG. Tente trocar a imagem de fundo.", variant: "destructive" });
+          return;
+        }
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -277,7 +282,9 @@ export default function LaminaEditor({ data, initialFeedState, initialStoryState
         a.click();
         URL.revokeObjectURL(url);
       }, "image/png");
-    } finally {
+    } catch (err) {
+      console.error("[LaminaEditor] export failed", err);
+      toast({ title: "Erro ao exportar", description: "A imagem de fundo não pôde ser usada no canvas. Tente outra.", variant: "destructive" });
       setExporting(false);
     }
   };
