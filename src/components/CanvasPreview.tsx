@@ -6,6 +6,7 @@ import { useDestinationImage } from "@/hooks/useDestinationImage";
 import { drawFeed, drawStory, LaminaState, DEFAULT_LAMINA_STATE, IMAGE_DISCLAIMER } from "@/lib/laminaRenderer";
 import { saveArchiveEntry } from "@/lib/archive";
 import { loadImageNoTaint } from "@/lib/imageLoader";
+import { compressImageToDataUrl } from "@/lib/imageCompress";
 import { toast } from "@/hooks/use-toast";
 import LaminaEditor from "./LaminaEditor";
 
@@ -50,18 +51,19 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
 
   const { imageEl, loading: imageLoading } = useDestinationImage(data.destino);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const url = ev.target?.result as string;
+    try {
+      const url = await compressImageToDataUrl(file);
       setFeedState((prev) => ({ ...prev, bgImageUrl: url }));
       setStoryState((prev) => ({ ...prev, bgImageUrl: url }));
       onDataChange?.({ ...data, imageUrl: url });
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
+    } catch (err) {
+      console.error("[CanvasPreview] image upload failed", err);
+      toast({ title: "Falha no upload", description: "Não foi possível processar a imagem.", variant: "destructive" });
+    }
   };
 
   useEffect(() => {
