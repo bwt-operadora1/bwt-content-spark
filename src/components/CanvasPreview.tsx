@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { useDestinationImage } from "@/hooks/useDestinationImage";
 import { drawFeed, drawStory, LaminaState, DEFAULT_LAMINA_STATE, IMAGE_DISCLAIMER } from "@/lib/laminaRenderer";
 import { saveArchiveEntry } from "@/lib/archive";
+import { loadImageNoTaint } from "@/lib/imageLoader";
+import { toast } from "@/hooks/use-toast";
 import LaminaEditor from "./LaminaEditor";
 
 interface CanvasPreviewProps {
@@ -64,16 +66,13 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
 
   useEffect(() => {
     let cancelled = false;
-    const loadBg = (url: string | undefined, setter: (img: HTMLImageElement | null) => void) => {
+    const loadBg = async (url: string | undefined, setter: (img: HTMLImageElement | null) => void) => {
       if (!url) {
         setter(null);
         return;
       }
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => { if (!cancelled) setter(img); };
-      img.onerror = () => { if (!cancelled) setter(null); };
-      img.src = url;
+      const img = await loadImageNoTaint(url);
+      if (!cancelled) setter(img);
     };
     loadBg(feedState.bgImageUrl || data.imageUrl, setFeedBgEl);
     loadBg(storyState.bgImageUrl || data.imageUrl, setStoryBgEl);
@@ -110,7 +109,11 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
     try {
       saveArchiveEntry(data, "Feed PNG");
       feedRef.current.toBlob((blob) => {
-        if (!blob) return;
+        setExportingFeed(false);
+        if (!blob) {
+          toast({ title: "Falha ao exportar", description: "Não foi possível gerar o PNG. Tente trocar a imagem.", variant: "destructive" });
+          return;
+        }
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -118,7 +121,9 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
         a.click();
         URL.revokeObjectURL(url);
       }, "image/png");
-    } finally {
+    } catch (err) {
+      console.error("[CanvasPreview] export feed failed", err);
+      toast({ title: "Erro ao exportar", description: "A imagem de fundo não pôde ser usada. Tente fazer upload de outra.", variant: "destructive" });
       setExportingFeed(false);
     }
   };
@@ -129,7 +134,11 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
     try {
       saveArchiveEntry(data, "Story PNG");
       storyRef.current.toBlob((blob) => {
-        if (!blob) return;
+        setExportingStory(false);
+        if (!blob) {
+          toast({ title: "Falha ao exportar", description: "Não foi possível gerar o PNG. Tente trocar a imagem.", variant: "destructive" });
+          return;
+        }
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -137,7 +146,9 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
         a.click();
         URL.revokeObjectURL(url);
       }, "image/png");
-    } finally {
+    } catch (err) {
+      console.error("[CanvasPreview] export story failed", err);
+      toast({ title: "Erro ao exportar", description: "A imagem de fundo não pôde ser usada. Tente fazer upload de outra.", variant: "destructive" });
       setExportingStory(false);
     }
   };

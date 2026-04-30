@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { fetchDestinationImage, fetchDestinationImages } from "@/lib/imageSearch";
 import { getDestinationContext } from "@/lib/destinationContext";
+import { loadImageNoTaint } from "@/lib/imageLoader";
 
 /**
  * Loads a real destination photo as an HTMLImageElement ready for canvas drawing.
@@ -18,23 +19,15 @@ export function useDestinationImage(destino: string) {
     const ctx = getDestinationContext(destino);
 
     fetchDestinationImage(ctx.imageKeyword)
-      .then((url) => {
+      .then(async (url) => {
         if (cancelled || !url) {
           setLoading(false);
           return;
         }
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => {
-          if (!cancelled) {
-            setImageEl(img);
-            setLoading(false);
-          }
-        };
-        img.onerror = () => {
-          if (!cancelled) setLoading(false);
-        };
-        img.src = url;
+        const img = await loadImageNoTaint(url);
+        if (cancelled) return;
+        if (img) setImageEl(img);
+        setLoading(false);
       })
       .catch(() => {
         if (!cancelled) setLoading(false);
@@ -65,16 +58,7 @@ export function useDestinationImages(destino: string, count: number = 3) {
     fetchDestinationImages(ctx.imageKeyword, count)
       .then((urls) => {
         if (cancelled) return;
-        const loadPromises = urls.map(
-          (url) =>
-            new Promise<HTMLImageElement | null>((resolve) => {
-              const img = new Image();
-              img.crossOrigin = "anonymous";
-              img.onload = () => resolve(img);
-              img.onerror = () => resolve(null);
-              img.src = url;
-            })
-        );
+        const loadPromises = urls.map((url) => loadImageNoTaint(url));
         Promise.all(loadPromises).then((imgs) => {
           if (!cancelled) {
             setImageEls(imgs);
