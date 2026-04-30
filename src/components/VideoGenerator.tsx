@@ -7,6 +7,8 @@ import { useDestinationImages } from "@/hooks/useDestinationImage";
 import { fetchDestinationImages } from "@/lib/imageSearch";
 import { saveArchiveEntry } from "@/lib/archive";
 import { IMAGE_DISCLAIMER } from "@/lib/laminaRenderer";
+import { loadImageNoTaint } from "@/lib/imageLoader";
+import { toast } from "@/hooks/use-toast";
 import { Muxer, ArrayBufferTarget } from "mp4-muxer";
 
 // ─── Canvas dimensions ────────────────────────────────────────────────────────
@@ -355,13 +357,7 @@ const VideoGenerator = ({ data, onDataChange }: VideoGeneratorProps) => {
   }, [sceneImages, imageEls]);
 
   const loadImageFromUrl = (url: string): Promise<HTMLImageElement | null> =>
-    new Promise((resolve) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => resolve(img);
-      img.onerror = () => resolve(null);
-      img.src = url;
-    });
+    loadImageNoTaint(url);
 
   const handleReplaceScene = async (idx: number) => {
     const term = searchTerms[idx]?.trim() || data.destino;
@@ -461,37 +457,49 @@ const VideoGenerator = ({ data, onDataChange }: VideoGeneratorProps) => {
 
     let lastProgress = -1;
 
-    for (let f = 0; f < TOTAL_FRAMES; f++) {
-      const t = f / FPS;
-      drawVideoFrame(canvas, data, bgImagesRef.current, t);
-      drawVideoFrame(offscreen, data, bgImagesRef.current, t);
+    try {
+      for (let f = 0; f < TOTAL_FRAMES; f++) {
+        const t = f / FPS;
+        drawVideoFrame(canvas, data, bgImagesRef.current, t);
+        drawVideoFrame(offscreen, data, bgImagesRef.current, t);
 
-      const frame = new VideoFrame(offscreen, { timestamp: Math.round((f / FPS) * 1_000_000) });
-      encoder.encode(frame, { keyFrame: f % (FPS * 2) === 0 });
-      frame.close();
+        const frame = new VideoFrame(offscreen, { timestamp: Math.round((f / FPS) * 1_000_000) });
+        encoder.encode(frame, { keyFrame: f % (FPS * 2) === 0 });
+        frame.close();
 
-      const pct = Math.min(100, Math.round((f / TOTAL_FRAMES) * 100));
-      if (pct !== lastProgress) {
-        setProgress(pct);
-        lastProgress = pct;
-        // Yield to keep UI responsive every 10 frames
-        if (f % 10 === 0) await new Promise((r) => setTimeout(r, 0));
+        const pct = Math.min(100, Math.round((f / TOTAL_FRAMES) * 100));
+        if (pct !== lastProgress) {
+          setProgress(pct);
+          lastProgress = pct;
+          // Yield to keep UI responsive every 10 frames
+          if (f % 10 === 0) await new Promise((r) => setTimeout(r, 0));
+        }
       }
+
+      await encoder.flush();
+      muxer.finalize();
+
+      const { buffer } = muxer.target;
+      const blob = new Blob([buffer], { type: "video/mp4" });
+      saveArchiveEntry(data, "Vídeo exportado");
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `bwt-${data.destino.toLowerCase().replace(/\s+/g, "-")}-reels.mp4`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setStatus("done");
+    } catch (err) {
+      console.error("[VideoGenerator] generation failed", err);
+      try { encoder.close(); } catch { /* noop */ }
+      toast({
+        title: "Erro ao gerar vídeo",
+        description: "A imagem de uma das cenas não pôde ser usada. Troque por outra (busca ou upload) e tente novamente.",
+        variant: "destructive",
+      });
+      setStatus("idle");
+      setProgress(0);
     }
-
-    await encoder.flush();
-    muxer.finalize();
-
-    const { buffer } = muxer.target;
-    const blob = new Blob([buffer], { type: "video/mp4" });
-    saveArchiveEntry(data, "Vídeo exportado");
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `bwt-${data.destino.toLowerCase().replace(/\s+/g, "-")}-reels.mp4`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setStatus("done");
   };
 
   const handleCancel = () => {
