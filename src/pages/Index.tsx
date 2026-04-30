@@ -48,19 +48,40 @@ const Index = () => {
   const handleSave = useCallback(() => {
     if (!travelData) return;
     setSaveState("saving");
-    localStorage.setItem("bwt-session", JSON.stringify(travelData));
     try {
-      saveArchiveEntry(travelData, "Salvo");
-    } catch {
-      // ignore storage errors
+      try {
+        localStorage.setItem("bwt-session", JSON.stringify(travelData));
+      } catch (err) {
+        // QuotaExceededError: TravelData may include large base64 image data URLs
+        // from user uploads. Drop the heavy fields and retry so the save still works.
+        console.warn("[Index] localStorage quota exceeded, saving without embedded images", err);
+        try {
+          const lite = {
+            ...travelData,
+            imageUrl: travelData.imageUrl?.startsWith("data:") ? undefined : travelData.imageUrl,
+            videoSceneImageUrls: travelData.videoSceneImageUrls?.map((u) =>
+              u?.startsWith("data:") ? undefined : u
+            ),
+          };
+          localStorage.setItem("bwt-session", JSON.stringify(lite));
+        } catch {
+          // give up on local persistence — cloud archive still receives the entry
+        }
+      }
+      try {
+        saveArchiveEntry(travelData, "Salvo");
+      } catch {
+        // ignore archive errors
+      }
+      setContentKey((k) => k + 1);
+      setIsDirty(false);
+    } finally {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        setSaveState("saved");
+        saveTimerRef.current = setTimeout(() => setSaveState("idle"), 2500);
+      }, 400);
     }
-    setContentKey((k) => k + 1);
-    setIsDirty(false);
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    setTimeout(() => {
-      setSaveState("saved");
-      saveTimerRef.current = setTimeout(() => setSaveState("idle"), 2500);
-    }, 400);
   }, [travelData]);
 
   const handleNewUpload = () => {
