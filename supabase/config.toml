@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.search-images]
 verify_jwt = false
+
+[functions.archive-records]
+verify_jwt = false
