@@ -3,6 +3,7 @@ import { useState, useMemo } from "react";
 import { TravelData } from "@/types/travel";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { saveArchiveEntry } from "@/lib/archive";
 
 interface ScriptGeneratorProps {
   data: TravelData;
@@ -13,9 +14,17 @@ const ScriptGenerator = ({ data }: ScriptGeneratorProps) => {
   const [whatsappPreview, setWhatsappPreview] = useState(false);
   const { toast } = useToast();
 
+  const SCRIPT_OUTPUT_LABELS: Record<string, string> = {
+    instagram: "Caption Instagram",
+    whatsapp: "Mensagem WhatsApp",
+    email: "E-mail de Vendas",
+  };
+
   const copyText = (text: string, id: string, label: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
+    const outputLabel = SCRIPT_OUTPUT_LABELS[id] ?? label;
+    saveArchiveEntry(data, outputLabel);
     toast({ description: `${label} copiado!`, duration: 1800 });
     setTimeout(() => setCopiedId(null), 2000);
   };

@@ -105,55 +105,57 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
     });
   }, [data, imageEl, storyBgEl, storyState]);
 
-  const handleExportFeed = async () => {
-    if (!feedRef.current) return;
-    setExportingFeed(true);
+  const exportCanvas = async (
+    format: "feed" | "story",
+    bgEl: HTMLImageElement | null,
+    setExporting: (v: boolean) => void,
+    laminaState: LaminaState,
+  ) => {
+    setExporting(true);
     try {
-      saveArchiveEntry(data, "Feed PNG");
-      feedRef.current.toBlob((blob) => {
-        setExportingFeed(false);
+      // Draw on a fresh offscreen canvas — this is never tainted regardless of
+      // what happened to the preview canvas during live rendering.
+      const offscreen = document.createElement("canvas");
+      const W = format === "feed" ? FEED_W : STORY_W;
+      const H = format === "feed" ? FEED_H : STORY_H;
+      offscreen.width = W;
+      offscreen.height = H;
+      await Promise.all([
+        document.fonts.ready,
+        document.fonts.load("800 48px 'Barlow Condensed'"),
+      ]);
+      if (format === "feed") {
+        drawFeed(offscreen, data, W, H, bgEl ?? imageEl, { laminaState });
+      } else {
+        drawStory(offscreen, data, W, H, bgEl ?? imageEl, { laminaState });
+      }
+      saveArchiveEntry(data, format === "feed" ? "Feed PNG" : "Story PNG");
+      offscreen.toBlob((blob) => {
+        setExporting(false);
         if (!blob) {
-          toast({ title: "Falha ao exportar", description: "Não foi possível gerar o PNG. Tente trocar a imagem.", variant: "destructive" });
+          toast({ title: "Falha ao exportar", description: "Não foi possível gerar o PNG.", variant: "destructive" });
           return;
         }
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `bwt-${data.destino.toLowerCase().replace(/\s+/g, "-")}-feed.png`;
+        a.download = `bwt-${data.destino.toLowerCase().replace(/\s+/g, "-")}-${format}.png`;
         a.click();
         URL.revokeObjectURL(url);
       }, "image/png");
     } catch (err) {
-      console.error("[CanvasPreview] export feed failed", err);
-      toast({ title: "Erro ao exportar", description: "A imagem de fundo não pôde ser usada. Tente fazer upload de outra.", variant: "destructive" });
-      setExportingFeed(false);
+      console.error("[CanvasPreview] export failed", err);
+      toast({
+        title: "Erro ao exportar",
+        description: "Não foi possível gerar o PNG. Use 'Trocar imagem' e selecione uma foto do seu computador para garantir a exportação.",
+        variant: "destructive",
+      });
+      setExporting(false);
     }
   };
 
-  const handleExportStory = async () => {
-    if (!storyRef.current) return;
-    setExportingStory(true);
-    try {
-      saveArchiveEntry(data, "Story PNG");
-      storyRef.current.toBlob((blob) => {
-        setExportingStory(false);
-        if (!blob) {
-          toast({ title: "Falha ao exportar", description: "Não foi possível gerar o PNG. Tente trocar a imagem.", variant: "destructive" });
-          return;
-        }
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `bwt-${data.destino.toLowerCase().replace(/\s+/g, "-")}-story.png`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }, "image/png");
-    } catch (err) {
-      console.error("[CanvasPreview] export story failed", err);
-      toast({ title: "Erro ao exportar", description: "A imagem de fundo não pôde ser usada. Tente fazer upload de outra.", variant: "destructive" });
-      setExportingStory(false);
-    }
-  };
+  const handleExportFeed = () => exportCanvas("feed", feedBgEl, setExportingFeed, feedState);
+  const handleExportStory = () => exportCanvas("story", storyBgEl, setExportingStory, storyState);
 
   return (
     <>

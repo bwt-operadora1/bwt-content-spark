@@ -5,15 +5,55 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ARCHIVE_STORAGE_KEY, ArchiveEntry, clearArchiveEntries, deleteArchiveEntry, loadArchiveEntriesFromCloud } from "@/lib/archive";
-import { Plane, Hotel, Building2, Trash2, Search, Calendar, Image, Video, FileText } from "lucide-react";
+import {
+  Plane, Hotel, Building2, Trash2, Search, Calendar,
+  Image, Video, FileText, Instagram, MessageCircle, Mail,
+  ChevronLeft, BarChart2, RefreshCw,
+} from "lucide-react";
+
+// Maps output label → icon + color for badges
+const OUTPUT_META: Record<string, { icon: React.ElementType; color: string }> = {
+  "Orçamento gerado":  { icon: FileText,       color: "#9333EA" },
+  "Feed PNG":          { icon: Image,           color: "#0ea5e9" },
+  "Story PNG":         { icon: Image,           color: "#6366f1" },
+  "Vídeo exportado":   { icon: Video,           color: "#10b981" },
+  "Caption Instagram": { icon: Instagram,       color: "#e1306c" },
+  "Mensagem WhatsApp": { icon: MessageCircle,   color: "#25d366" },
+  "E-mail de Vendas":  { icon: Mail,            color: "#f59e0b" },
+  "Salvo":             { icon: FileText,        color: "#64748b" },
+};
+
+function OutputBadge({ label }: { label: string }) {
+  const meta = OUTPUT_META[label];
+  const Icon = meta?.icon;
+  const color = meta?.color ?? "#9333EA";
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold"
+      style={{ background: `${color}18`, color, border: `1px solid ${color}30` }}
+    >
+      {Icon && <Icon className="w-2.5 h-2.5 shrink-0" />}
+      {label}
+    </span>
+  );
+}
 
 const Archive = () => {
   const [entries, setEntries] = useState<ArchiveEntry[]>([]);
   const [groupBy, setGroupBy] = useState<"destino" | "hotel" | "agencia">("destino");
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const refresh = () => {
+    setLoading(true);
+    loadArchiveEntriesFromCloud().then((data) => {
+      setEntries(data);
+      setLoading(false);
+    });
+  };
 
   useEffect(() => {
-    loadArchiveEntriesFromCloud().then(setEntries);
+    refresh();
   }, []);
 
   const handleDelete = (id: string) => {
@@ -59,12 +99,13 @@ const Archive = () => {
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [filtered, groupBy]);
 
-  const outputStats = useMemo(() => {
-    const allOutputs = entries.flatMap((entry) => entry.outputs ?? []);
+  const stats = useMemo(() => {
+    const allOutputs = entries.flatMap((e) => e.outputs ?? []);
     return {
-      budgets: allOutputs.filter((output) => output.includes("Orçamento")).length,
-      laminas: allOutputs.filter((output) => output.includes("Lâmina") || output.includes("Feed") || output.includes("Story")).length,
-      videos: allOutputs.filter((output) => output.includes("Vídeo")).length,
+      orcamentos:  allOutputs.filter((o) => o.includes("Orçamento")).length,
+      laminas:     allOutputs.filter((o) => o === "Feed PNG" || o === "Story PNG").length,
+      videos:      allOutputs.filter((o) => o.includes("Vídeo")).length,
+      scripts:     allOutputs.filter((o) => ["Caption Instagram", "Mensagem WhatsApp", "E-mail de Vendas"].includes(o)).length,
     };
   }, [entries]);
 
@@ -72,22 +113,22 @@ const Archive = () => {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 border-b border-border/50 bg-background/95 backdrop-blur">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-4 flex-wrap">
+          <Link to="/" className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0">
+            <ChevronLeft className="w-3.5 h-3.5" />
+            Voltar ao editor
+          </Link>
+
           <div className="flex items-center gap-2.5">
             <div
               className="w-7 h-7 rounded-lg flex items-center justify-center font-display font-black text-white"
-              style={{
-                fontSize: 10,
-                background: "linear-gradient(135deg, #7C3AED 0%, #6B21A8 100%)",
-              }}
+              style={{ fontSize: 10, background: "linear-gradient(135deg, #7C3AED 0%, #6B21A8 100%)" }}
             >
               BWT
             </div>
             <div>
-              <h1 className="font-display font-black uppercase text-sm tracking-widest leading-none">
-                Arquivo
-              </h1>
+              <h1 className="font-display font-black uppercase text-sm tracking-widest leading-none">Arquivo</h1>
               <p className="text-[10px] text-muted-foreground mt-1">
-                {entries.length} {entries.length === 1 ? "orçamento salvo" : "orçamentos salvos"}
+                {loading ? "Carregando..." : `${entries.length} ${entries.length === 1 ? "orçamento salvo" : "orçamentos salvos"}`}
               </p>
             </div>
           </div>
@@ -116,61 +157,71 @@ const Archive = () => {
             ))}
           </div>
 
-          {entries.length > 0 && (
-            <Button variant="outline" size="sm" onClick={handleClearAll} className="gap-1.5 text-xs">
-              <Trash2 className="w-3.5 h-3.5" />
-              Limpar tudo
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="ghost" size="sm" onClick={refresh} className="gap-1.5 text-xs" disabled={loading}>
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             </Button>
-          )}
+            {entries.length > 0 && (
+              <Button variant="outline" size="sm" onClick={handleClearAll} className="gap-1.5 text-xs">
+                <Trash2 className="w-3.5 h-3.5" />
+                Limpar tudo
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
-        {entries.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-24 gap-2 text-muted-foreground text-sm">
+            <RefreshCw className="w-4 h-4 animate-spin" />
+            Carregando arquivo...
+          </div>
+        ) : entries.length === 0 ? (
           <div className="text-center py-24">
             <div className="inline-flex w-16 h-16 rounded-2xl bg-muted items-center justify-center mb-4">
               <Plane className="w-7 h-7 text-muted-foreground" />
             </div>
-            <h2 className="font-display font-bold text-xl mb-2">Nenhum orçamento salvo ainda</h2>
+            <h2 className="font-display font-bold text-xl mb-2">Nenhum orçamento no arquivo</h2>
             <p className="text-sm text-muted-foreground mb-6">
-              Os orçamentos são adicionados aqui automaticamente quando você salva no editor.
+              O arquivo é preenchido automaticamente cada vez que você usa uma ferramenta: exporta lâmina, gera vídeo ou copia scripts.
             </p>
             <Link to="/">
               <Button size="sm">Voltar ao editor</Button>
             </Link>
           </div>
-        ) : grouped.length === 0 ? (
-          <p className="text-center py-16 text-sm text-muted-foreground">
-            Nada encontrado para "{search}".
-          </p>
         ) : (
           <div className="space-y-8">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: "Orçamentos gerados", value: outputStats.budgets, icon: FileText },
-                { label: "Lâminas usadas", value: outputStats.laminas, icon: Image },
-                { label: "Vídeos exportados", value: outputStats.videos, icon: Video },
-              ].map(({ label, value, icon: Icon }) => (
+                { label: "Orçamentos",        value: stats.orcamentos, icon: FileText,   color: "#9333EA" },
+                { label: "Lâminas exportadas", value: stats.laminas,   icon: Image,      color: "#0ea5e9" },
+                { label: "Vídeos gerados",     value: stats.videos,    icon: Video,      color: "#10b981" },
+                { label: "Scripts copiados",   value: stats.scripts,   icon: BarChart2,  color: "#f59e0b" },
+              ].map(({ label, value, icon: Icon, color }) => (
                 <Card key={label} className="p-4 flex items-center justify-between">
                   <div>
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
                     <p className="font-display font-bold text-2xl mt-1">{value}</p>
                   </div>
-                  <Icon className="w-5 h-5 text-primary" />
+                  <Icon className="w-5 h-5" style={{ color }} />
                 </Card>
               ))}
             </div>
 
-            {grouped.map(([groupKey, items]) => (
+            {grouped.length === 0 ? (
+              <p className="text-center py-16 text-sm text-muted-foreground">
+                Nada encontrado para "{search}".
+              </p>
+            ) : grouped.map(([groupKey, items]) => (
               <section key={groupKey}>
                 <div className="flex items-center gap-2 mb-3">
                   {groupBy === "destino" && <Plane className="w-4 h-4 text-primary" />}
                   {groupBy === "hotel" && <Hotel className="w-4 h-4 text-primary" />}
                   {groupBy === "agencia" && <Building2 className="w-4 h-4 text-primary" />}
                   <h2 className="font-display font-bold text-base">{groupKey}</h2>
-                  <Badge variant="secondary" className="text-[10px]">
-                    {items.length}
-                  </Badge>
+                  <Badge variant="secondary" className="text-[10px]">{items.length}</Badge>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -183,7 +234,7 @@ const Archive = () => {
                         </div>
                         <button
                           onClick={() => handleDelete(entry.id)}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all shrink-0"
                           aria-label="Apagar"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -200,15 +251,14 @@ const Archive = () => {
                         {entry.data.duracao && (
                           <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Calendar className="w-3 h-3" />
-                            <span>{entry.data.duracao} • {entry.data.regime}</span>
+                            <span>{entry.data.duracao}{entry.data.regime ? ` • ${entry.data.regime}` : ""}</span>
                           </div>
                         )}
                         {entry.outputs && entry.outputs.length > 0 && (
                           <div className="flex flex-wrap gap-1 pt-1">
-                            {entry.outputs.map((output) => (
-                              <Badge key={output} variant="outline" className="text-[9px] px-1.5 py-0">
-                                {output}
-                              </Badge>
+                            {/* deduplicate outputs */}
+                            {Array.from(new Set(entry.outputs)).map((output) => (
+                              <OutputBadge key={output} label={output} />
                             ))}
                           </div>
                         )}

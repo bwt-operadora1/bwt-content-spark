@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +20,7 @@ import ScriptGenerator from "@/components/ScriptGenerator";
 import DataDashboard from "@/components/DataDashboard";
 import { TravelData } from "@/types/travel";
 import { saveArchiveEntry } from "@/lib/archive";
-import { Image, Video, FileText, Upload, Save, CheckCircle2, RefreshCw, Plane } from "lucide-react";
+import { Image, Video, FileText, Upload, Save, CheckCircle2, RefreshCw, Plane, FolderOpen } from "lucide-react";
 
 const Index = () => {
   const [travelData, setTravelData] = useState<TravelData | null>(null);
@@ -174,6 +175,12 @@ const Index = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2 shrink-0">
+            <Link to="/arquivo">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs h-8">
+                <FolderOpen className="w-3 h-3" />
+                Arquivo
+              </Button>
+            </Link>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-1.5 text-xs h-8">

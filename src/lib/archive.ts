@@ -63,14 +63,18 @@ export async function loadArchiveEntriesFromCloud(): Promise<ArchiveEntry[]> {
       .select("id, updated_at, data, outputs" as never)
       .order("updated_at" as never, { ascending: false });
     if (error || !Array.isArray(data)) return local;
-    const cloudEntries = data.map((row: any) => ({
+    const cloudEntries: ArchiveEntry[] = data.map((row: any) => ({
       id: row.id,
       savedAt: new Date(row.updated_at).getTime(),
       data: row.data as TravelData,
       outputs: row.outputs ?? [],
     }));
-    localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(cloudEntries));
-    return cloudEntries;
+    // Merge: preserve local-only entries not yet synced to cloud
+    const cloudIds = new Set(cloudEntries.map((e) => e.id));
+    const localOnly = local.filter((e) => !cloudIds.has(e.id));
+    const merged = [...cloudEntries, ...localOnly].sort((a, b) => b.savedAt - a.savedAt);
+    localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(merged));
+    return merged;
   } catch {
     return local;
   }
