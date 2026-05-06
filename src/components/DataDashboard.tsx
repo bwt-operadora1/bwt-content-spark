@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { TravelData } from "@/types/travel";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
@@ -280,6 +281,19 @@ const DataDashboard = ({ data, onChange }: DataDashboardProps) => {
             </Button>
           </div>
         ))}
+      </Section>
+
+      {/* ── Condições (texto inferior) ── */}
+      <Section title="Condições (texto inferior)" defaultOpen={false}>
+        <Textarea
+          value={data.condicoes ?? ""}
+          onChange={(e) => onChange({ ...data, condicoes: e.target.value })}
+          placeholder="Deixe em branco para usar o texto padrão da BWT."
+          className="min-h-[120px] text-xs leading-relaxed bg-muted/50"
+        />
+        <p className="text-[10px] text-muted-foreground">
+          Esse texto aparece no rodapé da lâmina, junto ao aviso de imagens ilustrativas.
+        </p>
       </Section>
     </div>
   );
