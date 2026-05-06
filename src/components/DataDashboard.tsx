@@ -284,13 +284,12 @@ const DataDashboard = ({ data, onChange }: DataDashboardProps) => {
         ))}
       </Section>
 
-      {/* ── Condições (texto inferior) ── */}
-      <Section title="Condições (texto inferior)" defaultOpen={false}>
+      {/* ── Condições ── */}
+      <Section title="Condições" defaultOpen={false}>
         <Textarea
-          value={data.condicoes ?? ""}
+          value={data.condicoes ?? COND_PADRAO}
           onChange={(e) => onChange({ ...data, condicoes: e.target.value })}
-          placeholder="Deixe em branco para usar o texto padrão da BWT."
-          className="min-h-[120px] text-xs leading-relaxed bg-muted/50"
+          className="min-h-[160px] text-xs leading-relaxed bg-muted/50"
         />
         <p className="text-[10px] text-muted-foreground">
           Esse texto aparece no rodapé da lâmina, junto ao aviso de imagens ilustrativas.
