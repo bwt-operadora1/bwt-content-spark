@@ -7,6 +7,7 @@ import { drawFeed, drawStory, LaminaState, DEFAULT_LAMINA_STATE, IMAGE_DISCLAIME
 import { saveArchiveEntry } from "@/lib/archive";
 import { loadImageNoTaint } from "@/lib/imageLoader";
 import { compressImageToDataUrl } from "@/lib/imageCompress";
+import { validateImageFile, ACCEPTED_IMAGE_ACCEPT_ATTR, ACCEPTED_IMAGE_LABEL } from "@/lib/imageValidation";
 import { toast } from "@/hooks/use-toast";
 import LaminaEditor from "./LaminaEditor";
 
@@ -55,6 +56,11 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    const err = validateImageFile(file);
+    if (err) {
+      toast({ title: "Formato inválido", description: err, variant: "destructive" });
+      return;
+    }
     try {
       const url = await compressImageToDataUrl(file);
       setFeedState((prev) => ({ ...prev, bgImageUrl: url }));
@@ -183,7 +189,7 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
           <input
             ref={imageUploadRef}
             type="file"
-            accept="image/*"
+            accept={ACCEPTED_IMAGE_ACCEPT_ATTR}
             className="hidden"
             onChange={handleImageUpload}
           />
