@@ -9,6 +9,7 @@ import { saveArchiveEntry } from "@/lib/archive";
 import { IMAGE_DISCLAIMER } from "@/lib/laminaRenderer";
 import { loadImageNoTaint } from "@/lib/imageLoader";
 import { compressImageToDataUrl } from "@/lib/imageCompress";
+import { validateImageFile, ACCEPTED_IMAGE_ACCEPT_ATTR } from "@/lib/imageValidation";
 import { toast } from "@/hooks/use-toast";
 import { Muxer, ArrayBufferTarget } from "mp4-muxer";
 
