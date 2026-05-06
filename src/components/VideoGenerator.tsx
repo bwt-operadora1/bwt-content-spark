@@ -382,6 +382,11 @@ const VideoGenerator = ({ data, onDataChange }: VideoGeneratorProps) => {
   };
 
   const handleUploadScene = async (idx: number, file: File) => {
+    const err = validateImageFile(file);
+    if (err) {
+      toast({ title: "Formato inválido", description: err, variant: "destructive" });
+      return;
+    }
     try {
       const url = await compressImageToDataUrl(file);
       const img = await loadImageFromUrl(url);
@@ -660,7 +665,7 @@ const VideoGenerator = ({ data, onDataChange }: VideoGeneratorProps) => {
                         <input
                           ref={(el) => (fileInputRefs.current[idx] = el)}
                           type="file"
-                          accept="image/*"
+                          accept={ACCEPTED_IMAGE_ACCEPT_ATTR}
                           className="hidden"
                           onChange={(e) => {
                             const f = e.target.files?.[0];

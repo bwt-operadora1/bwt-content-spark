@@ -11,6 +11,7 @@ import { saveArchiveEntry } from "@/lib/archive";
 import { useDestinationImage } from "@/hooks/useDestinationImage";
 import { loadImageNoTaint } from "@/lib/imageLoader";
 import { compressImageToDataUrl } from "@/lib/imageCompress";
+import { validateImageFile, ACCEPTED_IMAGE_ACCEPT_ATTR } from "@/lib/imageValidation";
 import { toast } from "@/hooks/use-toast";
 
 // ─── Element metadata ─────────────────────────────────────────────────────────
@@ -238,6 +239,11 @@ export default function LaminaEditor({ data, initialFeedState, initialStoryState
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    const err = validateImageFile(file);
+    if (err) {
+      toast({ title: "Formato inválido", description: err, variant: "destructive" });
+      return;
+    }
     setBgLoading(true);
     try {
       const url = await compressImageToDataUrl(file);
@@ -452,7 +458,7 @@ export default function LaminaEditor({ data, initialFeedState, initialStoryState
                 <RotateCcw className="w-3 h-3" /> Restaurar Foto
               </Button>
             )}
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgUpload} />
+            <input ref={fileInputRef} type="file" accept={ACCEPTED_IMAGE_ACCEPT_ATTR} className="hidden" onChange={handleBgUpload} />
           </div>
         </div>
 
