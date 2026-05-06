@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { COND_PADRAO } from "@/lib/laminaRenderer";
 import { useState } from "react";
 
 interface DataDashboardProps {
