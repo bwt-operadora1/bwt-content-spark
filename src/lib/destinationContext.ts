@@ -68,7 +68,7 @@ const DESTINATIONS: DestinationContext[] = [
     country: "Brasil",
     description: "Piscinas naturais de Porto de Galinhas e o charme histórico de Olinda",
     highlights: ["Porto de Galinhas", "Piscinas naturais", "Olinda", "Carnatal"],
-    imageKeyword: "porto de galinhas pernambuco praia",
+    imageKeyword: "porto de galinhas pernambuco",
     unsplashId: "cTFhub2BhaM",
     palette: { sky: "#87ceeb", water: "#1a8a9a", sand: "#d4b890", palm: "#1a6e30", accent: "#00b4c8" },
     emoji: "🐠",
