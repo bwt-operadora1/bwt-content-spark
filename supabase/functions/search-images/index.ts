@@ -5,16 +5,48 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-function buildPexelsQueries(keyword: string): string[] {
-  const clean = keyword.trim().replace(/\s+/g, " ");
-  if (!clean) return [];
-  const noAccents = clean.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  // Try the exact keyword first (with and without accents). We deliberately
-  // do NOT append generic fallbacks like "beach travel" because Pexels then
-  // returns globally-popular results (e.g. Iceland's Blue Lagoon for any
-  // "natural pools" query). Better to fail and let the caller use a
-  // deterministic placeholder than to deliver a wrong destination photo.
-  return Array.from(new Set([clean, noAccents]));
+const stripAccents = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+/** Expand each term to also try its accent-stripped variant. */
+function expandQueries(terms: string[]): string[] {
+  const out: string[] = [];
+  for (const t of terms) {
+    const clean = (t ?? "").trim().replace(/\s+/g, " ");
+    if (!clean) continue;
+    if (!out.includes(clean)) out.push(clean);
+    const noAcc = stripAccents(clean);
+    if (noAcc !== clean && !out.includes(noAcc)) out.push(noAcc);
+  }
+  return out;
+}
+
+interface PexelsPhoto {
+  url: string;
+  alt: string;
+  src: { large2x?: string; large?: string };
+}
+
+/**
+ * Validate a photo against destination tokens. A photo is accepted if at
+ * least one validation token (accent-stripped, lowercase) appears in either
+ * its `alt` text or its Pexels page URL (which is a slug of the title).
+ */
+function isPhotoRelevant(photo: PexelsPhoto, tokens: string[]): boolean {
+  if (tokens.length === 0) return true; // no filter requested
+  const haystack = stripAccents(
+    `${photo.alt ?? ""} ${photo.url ?? ""}`.toLowerCase(),
+  );
+  return tokens.some((t) => t && haystack.includes(t));
+}
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 serve(async (req) => {
@@ -23,9 +55,26 @@ serve(async (req) => {
   }
 
   try {
-    const { keyword, count = 3 } = await req.json();
-    if (!keyword || typeof keyword !== "string") {
-      return new Response(JSON.stringify({ error: "keyword is required" }), {
+    const body = await req.json();
+    const count: number = Math.min(Math.max(Number(body.count) || 3, 1), 10);
+    const locale: string =
+      typeof body.locale === "string" && body.locale ? body.locale : "pt-BR";
+    const validationTokens: string[] = Array.isArray(body.validationTokens)
+      ? body.validationTokens
+          .filter((t: unknown): t is string => typeof t === "string")
+          .map((t: string) => stripAccents(t.toLowerCase().trim()))
+          .filter(Boolean)
+      : [];
+
+    // Accept either new `searchTerms[]` or legacy `keyword` (single string).
+    const rawTerms: string[] = Array.isArray(body.searchTerms)
+      ? body.searchTerms.filter((t: unknown): t is string => typeof t === "string")
+      : typeof body.keyword === "string"
+        ? [body.keyword]
+        : [];
+
+    if (rawTerms.length === 0) {
+      return new Response(JSON.stringify({ error: "searchTerms or keyword is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -39,39 +88,60 @@ serve(async (req) => {
       });
     }
 
-    let photos: any[] = [];
-    for (const query of buildPexelsQueries(keyword)) {
-      const resp = await fetch(
-        `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=15&orientation=landscape&locale=pt-BR`,
-        { headers: { Authorization: pexelsKey } }
-      );
+    // Cascade: try each term in order, collecting validated photos. Stop as
+    // soon as we have enough relevant results.
+    const queries = expandQueries(rawTerms);
+    const validated: PexelsPhoto[] = [];
+    const seenIds = new Set<string>();
+    let triedTerms: string[] = [];
+    let lastTermPhotos: PexelsPhoto[] = [];
 
+    for (const query of queries) {
+      triedTerms.push(query);
+      const url =
+        `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}` +
+        `&per_page=80&orientation=landscape&size=large&locale=${encodeURIComponent(locale)}`;
+      const resp = await fetch(url, { headers: { Authorization: pexelsKey } });
       if (!resp.ok) {
-        const errText = await resp.text();
-        console.error("Pexels API error:", resp.status, errText);
+        console.error("Pexels API error:", resp.status, await resp.text());
         continue;
       }
-
       const json = await resp.json();
-      photos = json.photos ?? [];
-      if (photos.length > 0) break;
+      const photos: PexelsPhoto[] = json.photos ?? [];
+      lastTermPhotos = photos;
+
+      for (const p of photos) {
+        const id = String((p as any).id ?? p.url);
+        if (seenIds.has(id)) continue;
+        if (!isPhotoRelevant(p, validationTokens)) continue;
+        seenIds.add(id);
+        validated.push(p);
+      }
+      if (validated.length >= count * 4) break; // enough to shuffle from
     }
 
-    if (photos.length === 0) {
-      return new Response(JSON.stringify({ error: "No Pexels images found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // If validation produced nothing, fall back to the LAST term's raw
+    // results (better a thematic shot than a random placeholder). This still
+    // respects the most-generic curated query rather than the dangerous
+    // "beach travel" world-wide pool.
+    let pool = validated;
+    let strict = true;
+    if (pool.length === 0) {
+      pool = lastTermPhotos;
+      strict = false;
     }
-    const pool = photos.slice(0, Math.min(10, photos.length));
-    // Shuffle
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    const urls = pool.slice(0, count).map((p: any) => p.src.large2x || p.src.large);
 
-    return new Response(JSON.stringify({ urls }), {
+    if (pool.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "No Pexels images found", triedTerms }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const shuffled = shuffle(pool).slice(0, count);
+    const urls = shuffled.map((p) => p.src.large2x || p.src.large).filter(Boolean);
+
+    return new Response(JSON.stringify({ urls, strict, triedTerms }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
