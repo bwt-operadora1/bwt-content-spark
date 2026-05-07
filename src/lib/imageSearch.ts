@@ -5,10 +5,7 @@ function buildPexelsQueries(keyword: string): string[] {
   const clean = keyword.trim().replace(/\s+/g, " ");
   if (!clean) return [];
   const noAccents = clean.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const queries = [clean, noAccents];
-  if (!/\bbrazil\b/i.test(clean)) queries.push(`${noAccents} Brazil`);
-  if (!/\b(beach|praia|trip|travel)\b/i.test(clean)) queries.push(`${noAccents} beach travel`);
-  return Array.from(new Set(queries));
+  return Array.from(new Set([clean, noAccents]));
 }
 
 /**
