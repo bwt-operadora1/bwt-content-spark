@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { fetchDestinationImage, fetchDestinationImages } from "@/lib/imageSearch";
-import { getDestinationContext } from "@/lib/destinationContext";
+import { getDestinationSearchSpec } from "@/lib/destinationContext";
 import { loadImageNoTaint } from "@/lib/imageLoader";
 
 /**
@@ -16,9 +16,7 @@ export function useDestinationImage(destino: string) {
     setLoading(true);
     setImageEl(null);
 
-    const ctx = getDestinationContext(destino);
-
-    fetchDestinationImage(ctx.imageKeyword)
+    fetchDestinationImage(getDestinationSearchSpec(destino))
       .then(async (url) => {
         if (cancelled || !url) {
           setLoading(false);
@@ -53,9 +51,7 @@ export function useDestinationImages(destino: string, count: number = 3) {
     setLoading(true);
     setImageEls([]);
 
-    const ctx = getDestinationContext(destino);
-
-    fetchDestinationImages(ctx.imageKeyword, count)
+    fetchDestinationImages(getDestinationSearchSpec(destino), count)
       .then((urls) => {
         if (cancelled) return;
         const loadPromises = urls.map((url) => loadImageNoTaint(url));
