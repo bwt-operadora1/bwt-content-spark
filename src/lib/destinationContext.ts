@@ -359,6 +359,78 @@ export function getDestinationContext(destino: string): DestinationContext {
   return { ...DEFAULT_CONTEXT, name: fallbackName, imageKeyword: `${fallbackName} viagem` };
 }
 
+// ─── Image search spec ─────────────────────────────────────────────────────
+// Locale per country: improves Pexels relevance because authors tag in the
+// local language. International destinations use en-US (most photographers
+// of Paris/Rome/etc tag in English).
+const PT_BR_COUNTRIES = new Set(["Brasil"]);
+
+const normalizeToken = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+export interface DestinationSearchSpec {
+  /** Ordered list of queries to try (specific → generic). Stop on first hit. */
+  searchTerms: string[];
+  /**
+   * Tokens that MUST appear in the photo's `alt` or `url` for it to be
+   * accepted. Filters out globally-popular irrelevant photos (e.g. Iceland's
+   * Blue Lagoon for "natural pools"). All accent-stripped, lowercase.
+   */
+  validationTokens: string[];
+  /** Pexels locale hint (`pt-BR` for Brazil, `en-US` otherwise). */
+  locale: string;
+}
+
+/**
+ * Builds a strict search spec for a destination, combining:
+ *   - the curated `imageKeyword` (most specific)
+ *   - the destination name + country (broader fallback)
+ *   - the country alone (last resort, usually skipped)
+ * Validation tokens come from `name`, `aliases`, and significant words of
+ * `imageKeyword` — used to discard photos whose alt/url do not mention the
+ * destination.
+ */
+export function getDestinationSearchSpec(
+  destino: string,
+): DestinationSearchSpec {
+  const ctx = getDestinationContext(destino);
+
+  // Build queries: most specific first, fall back to broader
+  const terms: string[] = [];
+  const push = (t: string) => {
+    const clean = t.trim().replace(/\s+/g, " ");
+    if (clean && !terms.includes(clean)) terms.push(clean);
+  };
+  push(ctx.imageKeyword);
+  push(`${ctx.name} ${ctx.country}`);
+  if (ctx.country) push(ctx.name);
+
+  // Validation tokens: name + aliases + country + significant keyword words
+  const STOPWORDS = new Set([
+    "de", "do", "da", "dos", "das", "e", "the", "of", "and",
+    "a", "an", "el", "la", "los", "las", "y",
+  ]);
+  const tokenSet = new Set<string>();
+  const addToken = (raw: string) => {
+    const t = normalizeToken(raw);
+    if (t.length >= 3 && !STOPWORDS.has(t)) tokenSet.add(t);
+  };
+  addToken(ctx.name);
+  ctx.name.split(/\s+/).forEach(addToken);
+  ctx.aliases.forEach((a) => {
+    addToken(a);
+    a.split(/\s+/).forEach(addToken);
+  });
+  ctx.imageKeyword.split(/\s+/).forEach(addToken);
+  if (ctx.country) addToken(ctx.country);
+
+  return {
+    searchTerms: terms,
+    validationTokens: Array.from(tokenSet),
+    locale: PT_BR_COUNTRIES.has(ctx.country) ? "pt-BR" : "en-US",
+  };
+}
+
 export function getUnsplashUrl(context: DestinationContext, width = 1080, height = 600): string {
   return `https://source.unsplash.com/${context.unsplashId}/${width}x${height}`;
 }
