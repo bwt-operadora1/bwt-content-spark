@@ -9,10 +9,12 @@ function buildPexelsQueries(keyword: string): string[] {
   const clean = keyword.trim().replace(/\s+/g, " ");
   if (!clean) return [];
   const noAccents = clean.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const queries = [clean, noAccents];
-  if (!/\bbrazil\b/i.test(clean)) queries.push(`${noAccents} Brazil`);
-  if (!/\b(beach|praia|trip|travel)\b/i.test(clean)) queries.push(`${noAccents} beach travel`);
-  return Array.from(new Set(queries));
+  // Try the exact keyword first (with and without accents). We deliberately
+  // do NOT append generic fallbacks like "beach travel" because Pexels then
+  // returns globally-popular results (e.g. Iceland's Blue Lagoon for any
+  // "natural pools" query). Better to fail and let the caller use a
+  // deterministic placeholder than to deliver a wrong destination photo.
+  return Array.from(new Set([clean, noAccents]));
 }
 
 serve(async (req) => {
