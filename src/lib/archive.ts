@@ -1,5 +1,4 @@
 import { TravelData } from "@/types/travel";
-import type { Json } from "@/integrations/supabase/types";
 
 export interface ArchiveEntry {
   id: string;
