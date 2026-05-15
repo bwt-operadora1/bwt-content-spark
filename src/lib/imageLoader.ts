@@ -26,20 +26,52 @@ export async function loadImageNoTaint(url: string): Promise<HTMLImageElement | 
     const res = await fetch(url, { mode: "cors", credentials: "omit" });
     if (res.ok) {
       const blob = await res.blob();
-      const objUrl = URL.createObjectURL(blob);
-      const img = await loadDirect(objUrl);
-      // We intentionally do NOT revoke the object URL here — the HTMLImageElement
-      // keeps using it for the lifetime of the canvas draws. The browser frees
-      // it when the page unloads.
-      if (img) return img;
-      URL.revokeObjectURL(objUrl);
+      if (blob.size > 0) {
+        const objUrl = URL.createObjectURL(blob);
+        const img = await loadDirect(objUrl);
+        // We intentionally do NOT revoke the object URL here — the HTMLImageElement
+        // keeps using it for the lifetime of the canvas draws. The browser frees
+        // it when the page unloads.
+        if (img) return img;
+        URL.revokeObjectURL(objUrl);
+      }
+    } else {
+      console.warn("[loadImageNoTaint] fetch non-ok", res.status, url);
     }
-  } catch {
-    // fall through to crossOrigin attempt
+  } catch (err) {
+    console.warn("[loadImageNoTaint] fetch failed, will try proxy", err);
   }
 
-  // 3. Fallback: classic crossOrigin load (works for properly-CORS-enabled hosts).
-  return loadDirect(url, true);
+  // 3. Fallback: route through our same-origin edge function proxy. This
+  //    guarantees a non-tainted canvas even when the upstream CDN omits CORS
+  //    headers. We intentionally avoid the classic crossOrigin="anonymous"
+  //    fallback because that can succeed visually but still taint the canvas,
+  //    breaking toBlob() at export time.
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL;
+    if (SUPABASE_URL) {
+      const proxyUrl = `${SUPABASE_URL}/functions/v1/image-proxy?url=${encodeURIComponent(url)}`;
+      const res = await fetch(proxyUrl);
+      if (res.ok) {
+        const blob = await res.blob();
+        if (blob.size > 0) {
+          const objUrl = URL.createObjectURL(blob);
+          const img = await loadDirect(objUrl);
+          if (img) return img;
+          URL.revokeObjectURL(objUrl);
+        }
+      } else {
+        console.warn("[loadImageNoTaint] proxy non-ok", res.status);
+      }
+    }
+    // suppress unused supabase import warning
+    void supabase;
+  } catch (err) {
+    console.warn("[loadImageNoTaint] proxy failed", err);
+  }
+
+  return null;
 }
 
 function loadDirect(src: string, withCors = false): Promise<HTMLImageElement | null> {
