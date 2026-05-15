@@ -292,8 +292,8 @@ export default function LaminaEditor({ data, initialFeedState, initialStoryState
         URL.revokeObjectURL(url);
       }, "image/png");
     } catch (err) {
-      console.error("[LaminaEditor] export failed", err);
-      toast({ title: "Erro ao exportar", description: "A imagem de fundo não pôde ser usada no canvas. Tente outra.", variant: "destructive" });
+      console.error("[LaminaEditor] export failed", err, { name: (err as any)?.name, message: (err as any)?.message });
+      toast({ title: "Erro ao exportar", description: `Falha: ${(err as any)?.message ?? "desconhecida"}.`, variant: "destructive" });
       setExporting(false);
     }
   };
