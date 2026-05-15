@@ -150,10 +150,10 @@ const CanvasPreview = ({ data, onDataChange }: CanvasPreviewProps) => {
         URL.revokeObjectURL(url);
       }, "image/png");
     } catch (err) {
-      console.error("[CanvasPreview] export failed", err);
+      console.error("[CanvasPreview] export failed", err, { name: (err as any)?.name, message: (err as any)?.message });
       toast({
         title: "Erro ao exportar",
-        description: "Não foi possível gerar o PNG. Use 'Trocar imagem' e selecione uma foto do seu computador para garantir a exportação.",
+        description: `Falha: ${(err as any)?.message ?? "desconhecida"}. Tente outra imagem.`,
         variant: "destructive",
       });
       setExporting(false);
