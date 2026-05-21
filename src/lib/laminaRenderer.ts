@@ -446,16 +446,16 @@ export function drawStory(
       }
       ctx.textAlign = "left";
       ctx.fillText(data.destino.toUpperCase(), bx, by + fs);
-      const subY = by + fs + Math.round(H * 0.016);
+      const subY = by + fs + Math.round(fs * 0.34);
       ctx.fillStyle = "#94a3b8";
-      ctx.font = `${Math.round(H * 0.014 * sc)}px sans-serif`;
+      ctx.font = `${Math.round(H * 0.016 * sc)}px sans-serif`;
       const hotelClean = sanitize(data.hotel);
-      const hotelShort = hotelClean.length > 38 ? hotelClean.substring(0, 38) + "\u2026" : hotelClean;
+      const hotelShort = hotelClean.length > 44 ? hotelClean.substring(0, 44) + "\u2026" : hotelClean;
       ctx.fillText(`${hotelShort}  \u00B7  ${data.duracao}`, bx, subY);
-      const boundsH = fs + Math.round(H * 0.016) + Math.round(H * 0.018);
-      hits.push({ key: "destination", label: "Destino", x: bx, y: by, w: W * 0.62, h: boundsH });
-      highlightIfNeeded(ctx, { x: bx, y: by, w: W * 0.62, h: boundsH }, "destination", "Destino", W, opts);
-      const sepY = subY + Math.round(H * 0.016);
+      const boundsH = fs + Math.round(fs * 0.34) + Math.round(H * 0.020);
+      hits.push({ key: "destination", label: "Destino", x: bx, y: by, w: W * 0.55, h: boundsH });
+      highlightIfNeeded(ctx, { x: bx, y: by, w: W * 0.55, h: boundsH }, "destination", "Destino", W, opts);
+      const sepY = subY + Math.round(H * 0.020);
       ctx.strokeStyle = "rgba(167,139,250,0.28)"; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(bx, sepY); ctx.lineTo(px2, sepY); ctx.stroke();
       // Inclui header
@@ -477,15 +477,15 @@ export function drawStory(
       ctx.font = `800 ${fs}px 'Barlow Condensed', sans-serif`;
       while (ctx.measureText(data.destino.toUpperCase()).width > W * 0.60 && fs > 22) fs -= 2;
       ctx.restore();
-      const subY2 = bodyY + fs + Math.round(H * 0.016);
-      const sepY2 = subY2 + Math.round(H * 0.016);
+      const subY2 = bodyY + fs + Math.round(fs * 0.34);
+      const sepY2 = subY2 + Math.round(H * 0.020);
       const ilx = bodyX + es.dx, ily = sepY2 + Math.round(H * 0.022) + es.dy;
       const color = es.color || "#a78bfa";
       let iy2 = ily + Math.round(H * 0.026);
-      const lineH2 = Math.round(H * 0.024);
-      const itemFs = Math.round(H * 0.019 * sc);
+      const lineH2 = Math.round(H * 0.022);
+      const itemFs = Math.round(H * 0.0175 * sc);
       const txtX2 = ilx + Math.round(W * 0.022);
-      const maxTxtW = W * 0.54 - Math.round(W * 0.022);
+      const maxTxtW = W * 0.48 - Math.round(W * 0.022);
       (data.inclui || []).forEach((item) => {
         ctx.fillStyle = color; ctx.font = `600 ${itemFs}px sans-serif`;
         ctx.fillText("\u2022", ilx, iy2);
@@ -498,7 +498,7 @@ export function drawStory(
         ctx.fillText("\u26A0 Só bagagem de mão", ilx, iy2 + Math.round(H * 0.006));
         iy2 += Math.round(H * 0.022);
       }
-      const bounds = { x: ilx, y: ily - Math.round(H * 0.016), w: W * 0.54, h: iy2 - ily + Math.round(H * 0.016) };
+      const bounds = { x: ilx, y: ily - Math.round(H * 0.016), w: W * 0.50, h: iy2 - ily + Math.round(H * 0.016) };
       hits.push({ key: "inclui", label: "Inclui", ...bounds });
       highlightIfNeeded(ctx, bounds, "inclui", "Inclui", W, opts);
     }
