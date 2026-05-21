@@ -431,6 +431,10 @@ export function drawStory(
   const bodyX = Math.round(W * 0.037);
   const bodyY = imgH + Math.round(H * 0.022);
   const px2 = W - Math.round(W * 0.037);
+  const storyInclRight = Math.round(W * 0.55);
+  const storyPriceLeft = Math.round(W * 0.66);
+  let storySepY = bodyY + Math.round(H * 0.13);
+  let storyContentY = storySepY + Math.round(H * 0.052);
 
   // Destination
   { const es = getStyle(st, "destination");
@@ -441,7 +445,7 @@ export function drawStory(
       ctx.fillStyle = color;
       let fs = Math.round(H * 0.072 * sc);
       ctx.font = `800 ${fs}px 'Barlow Condensed', sans-serif`;
-      while (ctx.measureText(data.destino.toUpperCase()).width > W * 0.60 && fs > 22) {
+      while (ctx.measureText(data.destino.toUpperCase()).width > W * 0.86 && fs > 22) {
         fs -= 2; ctx.font = `800 ${fs}px 'Barlow Condensed', sans-serif`;
       }
       ctx.textAlign = "left";
@@ -450,21 +454,16 @@ export function drawStory(
       ctx.fillStyle = "#94a3b8";
       ctx.font = `${Math.round(H * 0.016 * sc)}px sans-serif`;
       const hotelClean = sanitize(data.hotel);
-      const hotelShort = hotelClean.length > 44 ? hotelClean.substring(0, 44) + "\u2026" : hotelClean;
+      const hotelShort = hotelClean.length > 56 ? hotelClean.substring(0, 56) + "\u2026" : hotelClean;
       ctx.fillText(`${hotelShort}  \u00B7  ${data.duracao}`, bx, subY);
       const boundsH = fs + Math.round(fs * 0.34) + Math.round(H * 0.020);
-      hits.push({ key: "destination", label: "Destino", x: bx, y: by, w: W * 0.55, h: boundsH });
-      highlightIfNeeded(ctx, { x: bx, y: by, w: W * 0.55, h: boundsH }, "destination", "Destino", W, opts);
-      const sepY = subY + Math.round(H * 0.020);
+      hits.push({ key: "destination", label: "Destino", x: bx, y: by, w: W * 0.90, h: boundsH });
+      highlightIfNeeded(ctx, { x: bx, y: by, w: W * 0.90, h: boundsH }, "destination", "Destino", W, opts);
+      const sepY = subY + Math.round(H * 0.026);
+      storySepY = sepY;
+      storyContentY = sepY + Math.round(H * 0.052);
       ctx.strokeStyle = "rgba(167,139,250,0.28)"; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(bx, sepY); ctx.lineTo(px2, sepY); ctx.stroke();
-      // Inclui header
-      const { dx: idx2, dy: idy2 } = getStyle(st, "inclui");
-      const ilx = bodyX + idx2, ily = sepY + Math.round(H * 0.022) + idy2;
-      if (getStyle(st, "inclui").visible) {
-        ctx.fillStyle = "#94a3b8"; ctx.font = `700 ${Math.round(H * 0.016)}px sans-serif`;
-        ctx.textAlign = "left"; ctx.fillText("INCLUI", ilx, ily);
-      }
     }
   }
 
@@ -472,23 +471,16 @@ export function drawStory(
   { const es = getStyle(st, "inclui");
     if (es.visible) {
       const sc = es.fontSizeScale;
-      let fs = Math.round(H * 0.072 * getStyle(st, "destination").fontSizeScale);
-      ctx.save();
-      ctx.font = `800 ${fs}px 'Barlow Condensed', sans-serif`;
-      while (ctx.measureText(data.destino.toUpperCase()).width > W * 0.60 && fs > 22) fs -= 2;
-      ctx.restore();
-      const subY2 = bodyY + fs + Math.round(fs * 0.34);
-      const sepY2 = subY2 + Math.round(H * 0.020);
-      const ilx = bodyX + es.dx, ily = sepY2 + Math.round(H * 0.022) + es.dy;
+      const ilx = bodyX + es.dx, ily = storyContentY + es.dy;
       const color = es.color || "#a78bfa";
-      let iy2 = ily + Math.round(H * 0.030);
-      const itemFs = Math.round(H * 0.0145 * sc);
-      const lineH2 = Math.round(itemFs * 1.35);
-      const itemGap = Math.round(itemFs * 0.55);
+      ctx.fillStyle = "#94a3b8"; ctx.font = `700 ${Math.round(H * 0.016 * sc)}px sans-serif`;
+      ctx.textAlign = "left"; ctx.fillText("INCLUI", ilx, ily);
+      let iy2 = ily + Math.round(H * 0.038);
+      const itemFs = Math.round(H * 0.016 * sc);
+      const lineH2 = Math.round(itemFs * 1.38);
+      const itemGap = Math.round(itemFs * 0.62);
       const txtX2 = ilx + Math.round(W * 0.024);
-      // Hard right boundary: leave room for price column on the right
-      const inclRightLimit = W * 0.56;
-      const maxTxtW = inclRightLimit - txtX2;
+      const maxTxtW = Math.max(W * 0.32, storyInclRight - txtX2);
       (data.inclui || []).forEach((item) => {
         ctx.fillStyle = color; ctx.font = `600 ${itemFs}px sans-serif`;
         ctx.fillText("\u2022", ilx, iy2);
@@ -502,7 +494,7 @@ export function drawStory(
         ctx.fillText("\u26A0 Só bagagem de mão", ilx, iy2 + Math.round(H * 0.006));
         iy2 += Math.round(H * 0.022);
       }
-      const bounds = { x: ilx, y: ily - Math.round(H * 0.016), w: W * 0.50, h: iy2 - ily + Math.round(H * 0.016) };
+      const bounds = { x: ilx, y: ily - Math.round(H * 0.016), w: storyInclRight - ilx, h: iy2 - ily + Math.round(H * 0.016) };
       hits.push({ key: "inclui", label: "Inclui", ...bounds });
       highlightIfNeeded(ctx, bounds, "inclui", "Inclui", W, opts);
     }
@@ -512,18 +504,16 @@ export function drawStory(
   { const es = getStyle(st, "price");
     if (es.visible) {
       const sc = es.fontSizeScale;
-      // A PARTIR DE + 10x above separator; R$ baseline touches separator
-      let py2 = bodyY + Math.round(H * 0.020) + es.dy - 5;
+      let py2 = storyContentY + es.dy;
       const prx = px2 + es.dx;
       const accent = es.color || "#a78bfa";
+      const priceMaxW = Math.max(W * 0.26, prx - storyPriceLeft);
       ctx.textAlign = "right";
       ctx.fillStyle = "#94a3b8"; ctx.font = `${Math.round(H * 0.011 * sc)}px sans-serif`;
       ctx.fillText("A PARTIR DE", prx, py2); py2 += Math.round(H * 0.032 * sc);
-      ctx.fillStyle = accent; ctx.font = `900 ${Math.round(H * 0.028 * sc)}px sans-serif`;
+      ctx.fillStyle = accent; ctx.font = `900 ${Math.round(H * 0.036 * sc)}px sans-serif`;
       ctx.fillText(`${data.parcelas}x`, prx, py2); py2 += Math.round(H * 0.042 * sc);
-      // Auto-shrink price to fit inside the right column (max width ~ W*0.40)
-      const priceMaxW = W * 0.40;
-      let priceFs = Math.round(H * 0.036 * sc);
+      let priceFs = Math.round(H * 0.044 * sc);
       const priceTxt = `R$ ${data.precoParcela.replace("R$ ", "")}`;
       ctx.font = `900 ${priceFs}px sans-serif`;
       while (ctx.measureText(priceTxt).width > priceMaxW && priceFs > 28) {
@@ -532,14 +522,19 @@ export function drawStory(
       ctx.fillStyle = "#fff";
       ctx.fillText(priceTxt, prx, py2); py2 += Math.round(H * 0.024 * sc);
       if (data.precoAVista) {
-        ctx.fillStyle = "#e2e8f0"; ctx.font = `600 ${Math.round(H * 0.013 * sc)}px sans-serif`;
-        ctx.fillText(`Ou ${data.precoAVista}`, prx, py2); py2 += Math.round(H * 0.018 * sc);
+        let avistaFs = Math.round(H * 0.013 * sc);
+        const avistaTxt = `Ou ${data.precoAVista}`;
+        ctx.fillStyle = "#e2e8f0"; ctx.font = `600 ${avistaFs}px sans-serif`;
+        while (ctx.measureText(avistaTxt).width > priceMaxW && avistaFs > 14) {
+          avistaFs -= 1; ctx.font = `600 ${avistaFs}px sans-serif`;
+        }
+        ctx.fillText(avistaTxt, prx, py2); py2 += Math.round(H * 0.018 * sc);
       }
       ctx.fillStyle = "#94a3b8"; ctx.font = `${Math.round(H * 0.011 * sc)}px sans-serif`;
       ctx.fillText("por pessoa em apto duplo", prx, py2);
-      const priceStartY = bodyY + Math.round(H * 0.018) + es.dy - 5;
+      const priceStartY = storyContentY + es.dy - Math.round(H * 0.014);
       const priceH = py2 - priceStartY + Math.round(H * 0.018);
-      const bounds = { x: prx - W * 0.45, y: priceStartY, w: W * 0.45, h: priceH };
+      const bounds = { x: storyPriceLeft, y: priceStartY, w: prx - storyPriceLeft, h: priceH };
       hits.push({ key: "price", label: "Preço", ...bounds });
       highlightIfNeeded(ctx, bounds, "price", "Preço", W, opts);
     }
