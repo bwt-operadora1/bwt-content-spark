@@ -542,7 +542,7 @@ export function drawStory(
   }
 
   // Date pill + airline
-  const bottomY = H - Math.round(H * 0.128);
+  const bottomY = H - Math.round(H * 0.108);
   { const es = getStyle(st, "airline");
     if (es.visible && data.companhiaAerea) {
       const color = es.color || "#ffffff";
