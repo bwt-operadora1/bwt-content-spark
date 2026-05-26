@@ -434,7 +434,7 @@ export function drawStory(
   const storyInclRight = Math.round(W * 0.55);
   const storyPriceLeft = Math.round(W * 0.66);
   let storySepY = bodyY + Math.round(H * 0.13);
-  let storyContentY = storySepY + Math.round(H * 0.028);
+  let storyContentY = storySepY + Math.round(H * 0.040);
 
   // Destination
   { const es = getStyle(st, "destination");
@@ -461,7 +461,7 @@ export function drawStory(
       highlightIfNeeded(ctx, { x: bx, y: by, w: W * 0.90, h: boundsH }, "destination", "Destino", W, opts);
       const sepY = subY + Math.round(H * 0.026);
       storySepY = sepY;
-      storyContentY = sepY + Math.round(H * 0.028);
+      storyContentY = sepY + Math.round(H * 0.040);
       ctx.strokeStyle = "rgba(167,139,250,0.28)"; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(bx, sepY); ctx.lineTo(px2, sepY); ctx.stroke();
     }
