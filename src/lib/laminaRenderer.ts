@@ -475,13 +475,13 @@ export function drawStory(
       const color = es.color || "#a78bfa";
       ctx.fillStyle = "#94a3b8"; ctx.font = `700 ${Math.round(H * 0.016 * sc)}px sans-serif`;
       ctx.textAlign = "left"; ctx.fillText("INCLUI", ilx, ily);
-      let iy2 = ily + Math.round(H * 0.026);
-      const itemFs = Math.round(H * 0.0138 * sc);
-      const lineH2 = Math.round(itemFs * 1.24);
-      const itemGap = Math.round(itemFs * 0.22);
+      let iy2 = ily + Math.round(H * 0.032);
+      const itemFs = Math.round(H * 0.0142 * sc);
+      const lineH2 = Math.round(itemFs * 1.26);
+      const itemGap = Math.round(itemFs * 0.55);
       const txtX2 = ilx + Math.round(W * 0.024);
       const maxTxtW = Math.max(W * 0.32, storyInclRight - txtX2);
-      const inclItems = (data.inclui || []).slice(0, 6);
+      const inclItems = (data.inclui || []).slice(0, 5);
       inclItems.forEach((item) => {
         ctx.fillStyle = color; ctx.font = `600 ${itemFs}px sans-serif`;
         ctx.fillText("\u2022", ilx, iy2);
@@ -542,7 +542,7 @@ export function drawStory(
   }
 
   // Date pill + airline
-  const bottomY = H - Math.round(H * 0.108);
+  const bottomY = H - Math.round(H * 0.088);
   { const es = getStyle(st, "airline");
     if (es.visible && data.companhiaAerea) {
       const color = es.color || "#ffffff";
