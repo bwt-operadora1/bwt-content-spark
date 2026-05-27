@@ -564,7 +564,7 @@ export function drawStory(
       ctx.font = `700 ${Math.round(H * 0.016 * es.fontSizeScale)}px sans-serif`;
       ctx.textAlign = "left";
       const pillW = ctx.measureText(dataTxt).width + Math.round(W * 0.05);
-      const dpx = bodyX + es.dx, dpy = bottomY + es.dy;
+      const dpx = bodyX + es.dx, dpy = bottomY - Math.round(H * 0.02) + es.dy;
       ctx.fillStyle = color;
       rrect(ctx, dpx, dpy, pillW, pillH, pillH / 2); ctx.fill();
       ctx.fillStyle = "#ffffff";
