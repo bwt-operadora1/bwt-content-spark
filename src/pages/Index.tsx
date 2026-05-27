@@ -37,10 +37,13 @@ const Index = () => {
   }, []);
 
   const handleDataExtracted = useCallback((data: TravelData) => {
-    setTravelData(data);
+    const withSession: TravelData = {
+      ...data,
+      archiveSessionId: crypto.randomUUID(),
+    };
+    setTravelData(withSession);
     try {
-      saveArchiveEntry(data, "Orçamento gerado");
-      saveArchiveEntry(data, "Lâmina gerada");
+      saveArchiveEntry(withSession, "Orçamento gerado");
     } catch {
       // ignore storage errors
     }

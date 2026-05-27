@@ -7,6 +7,8 @@ const corsHeaders = {
 };
 
 function signatureFromData(data: Record<string, unknown>) {
+  const sid = typeof data.archiveSessionId === "string" ? data.archiveSessionId : "";
+  if (sid) return `sid:${sid}`;
   return `${data.destino ?? ""}|${data.hotel ?? ""}|${data.dataInicio ?? ""}`;
 }
 

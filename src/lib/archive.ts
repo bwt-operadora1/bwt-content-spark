@@ -42,7 +42,9 @@ function persistArchiveEntries(entries: ArchiveEntry[]) {
 }
 
 const makeSignature = (data: TravelData) =>
-  `${data.destino}|${data.hotel}|${data.dataInicio || ""}`;
+  data.archiveSessionId
+    ? `sid:${data.archiveSessionId}`
+    : `${data.destino}|${data.hotel}|${data.dataInicio || ""}`;
 
 export function loadArchiveEntries(): ArchiveEntry[] {
   try {

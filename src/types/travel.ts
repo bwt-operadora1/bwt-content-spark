@@ -40,6 +40,7 @@ export interface TravelData {
   campanha?: string;
   bloqueioAereo?: boolean;
   marketing?: MarketingContent;
+  archiveSessionId?: string;
 }
 
 export interface VideoScene {
