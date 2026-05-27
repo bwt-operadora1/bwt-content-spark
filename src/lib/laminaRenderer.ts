@@ -170,6 +170,23 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
   return cy;
 }
 
+// Counts how many wrapped lines a string would take at the current font/maxW,
+// without drawing. Used to auto-fit the inclui block when many items are present.
+function measureWrappedLines(ctx: CanvasRenderingContext2D, text: string, maxW: number): number {
+  const words = text.split(" ");
+  let line = "";
+  let lines = 0;
+  for (const w of words) {
+    const test = line + (line ? " " : "") + w;
+    if (ctx.measureText(test).width > maxW && line) {
+      lines += 1;
+      line = w;
+    } else line = test;
+  }
+  if (line) lines += 1;
+  return lines || 1;
+}
+
 export function drawBgImage(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, w: number, h: number) {
   if (!img.naturalWidth || !img.naturalHeight) return;
   ctx.save();
@@ -476,12 +493,28 @@ export function drawStory(
       ctx.fillStyle = "#94a3b8"; ctx.font = `700 ${Math.round(H * 0.016 * sc)}px sans-serif`;
       ctx.textAlign = "left"; ctx.fillText("INCLUI", ilx, ily);
       let iy2 = ily + Math.round(H * 0.032);
-      const itemFs = Math.round(H * 0.0142 * sc);
-      const lineH2 = Math.round(itemFs * 1.26);
-      const itemGap = Math.round(itemFs * 0.55);
+      let itemFs = Math.round(H * 0.0142 * sc);
+      let lineH2 = Math.round(itemFs * 1.26);
+      let itemGap = Math.round(itemFs * 0.55);
       const txtX2 = ilx + Math.round(W * 0.024);
       const maxTxtW = Math.max(W * 0.32, storyInclRight - txtX2);
-      const inclItems = (data.inclui || []).slice(0, 5);
+
+      // Auto-fit: shrink font, line-height and item gap so the full list fits
+      // above the price block. Floor at 70% of the default size.
+      const inclItems = data.inclui || [];
+      const storyInclBottomLimit = storyContentY + Math.round(H * 0.20); // reserved area above price column
+      const availableH = Math.max(0, storyInclBottomLimit - iy2);
+      ctx.font = `600 ${itemFs}px sans-serif`;
+      let totalLines = 0;
+      for (const item of inclItems) totalLines += measureWrappedLines(ctx, sanitize(item), maxTxtW);
+      const neededH = totalLines * lineH2 + Math.max(0, inclItems.length - 1) * itemGap;
+      if (neededH > availableH && availableH > 0) {
+        const fitScale = Math.max(0.7, availableH / neededH);
+        itemFs = Math.max(10, Math.round(itemFs * fitScale));
+        lineH2 = Math.max(12, Math.round(lineH2 * fitScale));
+        itemGap = Math.max(2, Math.round(itemGap * fitScale));
+      }
+
       inclItems.forEach((item) => {
         ctx.fillStyle = color; ctx.font = `600 ${itemFs}px sans-serif`;
         ctx.fillText("\u2022", ilx, iy2);
@@ -763,11 +796,30 @@ export function drawFeed(
       ctx.fillStyle = "#94a3b8"; ctx.font = `700 ${Math.round(H * 0.016 * sc)}px sans-serif`;
       ctx.textAlign = "left"; ctx.fillText("INCLUI", ilx, ily);
       let iy = ily + Math.round(H * 0.026);
-      const lineH2 = Math.round(H * 0.024);
-      const itemFs2 = Math.round(H * 0.019 * sc);
+      let lineH2 = Math.round(H * 0.024);
+      let itemFs2 = Math.round(H * 0.019 * sc);
       const txtX3 = ilx + Math.round(W * 0.022);
       const maxTxtW2 = W * 0.52 - Math.round(W * 0.022);
-      (data.inclui || []).forEach((item) => {
+
+      // Auto-fit: shrink font/line-height so the whole list fits above the date pill.
+      // Floor at 70% of the default size to preserve legibility.
+      const items = data.inclui || [];
+      const inclTopY = iy;
+      const inclBottomLimit = H - Math.round(H * 0.105) - Math.round(H * 0.012); // above datePill with margin
+      const availableH = Math.max(0, inclBottomLimit - inclTopY);
+      ctx.font = `600 ${itemFs2}px sans-serif`;
+      const totalLines = items.reduce(
+        (acc, item) => acc + measureWrappedLines(ctx, sanitize(item), maxTxtW2),
+        0,
+      );
+      const neededH = totalLines * lineH2;
+      if (neededH > availableH && availableH > 0) {
+        const fitScale = Math.max(0.7, availableH / neededH);
+        itemFs2 = Math.max(10, Math.round(itemFs2 * fitScale));
+        lineH2 = Math.max(12, Math.round(lineH2 * fitScale));
+      }
+
+      items.forEach((item) => {
         ctx.fillStyle = color; ctx.font = `600 ${itemFs2}px sans-serif`;
         ctx.fillText("\u2022", ilx, iy);
         ctx.fillStyle = "#e2e8f0";
